@@ -7,21 +7,29 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 )
 
+// TODO: It's not thread safe collection.
 var pathToURL = make(map[string]string)
 
 func ShortUrlHandler(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "text/plain")
-
-	if req.Method != http.MethodPost {
-		http.Error(res, "Only POST requests are allowed.", http.StatusMethodNotAllowed)
-		return
+	switch req.Method {
+	case http.MethodPost:
+		methodPostHandler(res, req)
+	case http.MethodGet:
+		methodGetHandler(res, req)
+	default:
+		http.Error(res, "Only GET/POST requests are allowed.", http.StatusBadRequest)
 	}
+}
+
+func methodPostHandler(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/plain")
 
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusInternalServerError)
+		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
 	if !isRequestBodyValid(string(body)) {
@@ -30,21 +38,49 @@ func ShortUrlHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	host := req.Host
-	shortURL := genShortURL(string(body), host)
+	shortURL := genShortURL(string(body))
+	resURL := fmt.Sprintf("http://%s/%s", host, shortURL)
+
 	if _, ok := pathToURL[shortURL]; ok {
 		res.WriteHeader(http.StatusOK)
+		_, err := res.Write([]byte(resURL))
+
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
+			return
+		}
 		return
 	}
 
 	pathToURL[shortURL] = string(body)
-
 	res.WriteHeader(http.StatusCreated)
+
+	_, writeErr := res.Write([]byte(resURL))
+	if writeErr != nil {
+		http.Error(res, writeErr.Error(), http.StatusBadRequest)
+		return
+	}
 }
 
-func genShortURL(url, host string) string {
+func methodGetHandler(res http.ResponseWriter, req *http.Request) {
+	path := strings.TrimPrefix(req.URL.Path, "/")
+	if path == "" {
+		http.Error(res, "Short URL is missing.", http.StatusBadRequest)
+		return
+	}
+
+	targetURL, exists := pathToURL[path]
+	if !exists {
+		http.Error(res, "URL doesn't found.", http.StatusBadRequest)
+		return
+	}
+
+	http.Redirect(res, req, targetURL, http.StatusTemporaryRedirect)
+}
+
+func genShortURL(url string) string {
 	hash := sha256.Sum256([]byte(url))
-	encoded := base64.RawURLEncoding.EncodeToString(hash[:8])
-	return fmt.Sprintf("http://%s/%s", host, encoded)
+	return base64.RawURLEncoding.EncodeToString(hash[:8])
 }
 
 func isRequestBodyValid(body string) bool {
