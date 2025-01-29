@@ -13,7 +13,7 @@ import (
 // TODO: It's not thread safe collection.
 var pathToURL = make(map[string]string)
 
-func ShortUrlHandler(res http.ResponseWriter, req *http.Request) {
+func ShortURLHandler(res http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case http.MethodPost:
 		methodPostHandler(res, req)

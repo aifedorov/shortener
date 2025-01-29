@@ -9,7 +9,7 @@ import (
 
 func main() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", app.ShortUrlHandler)
+	mux.HandleFunc("/", app.ShortURLHandler)
 
 	err := http.ListenAndServe(":8080", mux)
 	if err != nil {
