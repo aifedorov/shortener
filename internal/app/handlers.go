@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 )
 
-// TODO: It's not thread safe collection.
-var pathToURL = make(map[string]string)
+var pathToURL = sync.Map{}
 
 func ShortURLHandler(res http.ResponseWriter, req *http.Request) {
 	switch req.Method {
@@ -32,8 +32,8 @@ func methodPostHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
-	if !isRequestBodyValid(string(body)) {
-		http.Error(res, "The request must include only one URL formatted as follows: https://example.com.", http.StatusBadRequest)
+	if !requestBodyValid(string(body)) {
+		http.Error(res, "The request must include one URL formatted as follows: https://example.com.", http.StatusBadRequest)
 		return
 	}
 
@@ -41,7 +41,7 @@ func methodPostHandler(res http.ResponseWriter, req *http.Request) {
 	shortURL := genShortURL(string(body))
 	resURL := fmt.Sprintf("http://%s/%s", host, shortURL)
 
-	if _, ok := pathToURL[shortURL]; ok {
+	if _, ok := pathToURL.Load(shortURL); ok {
 		res.WriteHeader(http.StatusOK)
 		_, err := res.Write([]byte(resURL))
 
@@ -52,7 +52,7 @@ func methodPostHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	pathToURL[shortURL] = string(body)
+	pathToURL.Store(shortURL, string(body))
 	res.WriteHeader(http.StatusCreated)
 
 	_, writeErr := res.Write([]byte(resURL))
@@ -69,13 +69,13 @@ func methodGetHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	targetURL, exists := pathToURL[path]
+	targetURL, exists := pathToURL.Load(path)
 	if !exists {
 		http.Error(res, "URL doesn't found.", http.StatusBadRequest)
 		return
 	}
 
-	http.Redirect(res, req, targetURL, http.StatusTemporaryRedirect)
+	http.Redirect(res, req, targetURL.(string), http.StatusTemporaryRedirect)
 }
 
 func genShortURL(url string) string {
@@ -83,9 +83,9 @@ func genShortURL(url string) string {
 	return base64.RawURLEncoding.EncodeToString(hash[:8])
 }
 
-func isRequestBodyValid(body string) bool {
-	if len(body) == 0 {
-		return false
+func requestBodyValid(body string) bool {
+	if body == "" {
+		return true
 	}
 
 	match, err := regexp.MatchString(`^(https|http)://[a-z0-9]+\.+[a-z0-9]+\.*[a-z]+/*:*[0-9]*$`, body)
