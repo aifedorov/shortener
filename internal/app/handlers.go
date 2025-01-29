@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strings"
 	"sync"
 )
@@ -30,11 +29,6 @@ func methodPostHandler(res http.ResponseWriter, req *http.Request) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
-	}
-
-	if !requestBodyValid(string(body)) {
-		http.Error(res, "The request must include one URL formatted as follows: https://example.com.", http.StatusBadRequest)
-		return
 	}
 
 	host := req.Host
@@ -81,17 +75,4 @@ func methodGetHandler(res http.ResponseWriter, req *http.Request) {
 func genShortURL(url string) string {
 	hash := sha256.Sum256([]byte(url))
 	return base64.RawURLEncoding.EncodeToString(hash[:8])
-}
-
-func requestBodyValid(body string) bool {
-	if body == "" {
-		return true
-	}
-
-	match, err := regexp.MatchString(`^(https|http)://[a-z0-9]+\.+[a-z0-9]+\.*[a-z]+/*:*[0-9]*$`, body)
-	if err != nil {
-		return false
-	}
-
-	return match
 }
