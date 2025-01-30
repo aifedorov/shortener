@@ -3,27 +3,51 @@ package app
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
-	"sync"
 )
 
-var pathToURL = sync.Map{}
+var (
+	ErrShortURLMissing  = errors.New("short URL is missing")
+	ErrMethodNotAllowed = errors.New("method is not allowed")
+)
 
-func ShortURLHandler(res http.ResponseWriter, req *http.Request) {
-	switch req.Method {
-	case http.MethodPost:
-		methodPostHandler(res, req)
-	case http.MethodGet:
-		methodGetHandler(res, req)
-	default:
-		http.Error(res, "Only GET/POST requests are allowed.", http.StatusBadRequest)
+type Server struct {
+	mux       *http.ServeMux
+	pathToURL map[string]string
+}
+
+func NewServer() *Server {
+	return &Server{
+		mux:       http.NewServeMux(),
+		pathToURL: make(map[string]string),
 	}
 }
 
-func methodPostHandler(res http.ResponseWriter, req *http.Request) {
+func (s *Server) ListenAndServe() {
+	s.mux.HandleFunc("/", s.shortURLHandler)
+	err := http.ListenAndServe(":8080", s.mux)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (s *Server) shortURLHandler(res http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case http.MethodPost:
+		s.methodPostHandler(res, req)
+	case http.MethodGet:
+		s.methodGetHandler(res, req)
+	default:
+		http.Error(res, ErrMethodNotAllowed.Error(), http.StatusBadRequest)
+	}
+}
+
+func (s *Server) methodPostHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
 
 	body, err := io.ReadAll(req.Body)
@@ -35,7 +59,7 @@ func methodPostHandler(res http.ResponseWriter, req *http.Request) {
 	shortURL := genShortURL(string(body))
 	resURL := fmt.Sprintf("http://%s/%s", host, shortURL)
 
-	if _, ok := pathToURL.Load(shortURL); ok {
+	if _, ok := s.pathToURL[shortURL]; ok {
 		res.WriteHeader(http.StatusOK)
 		_, err := res.Write([]byte(resURL))
 
@@ -46,7 +70,7 @@ func methodPostHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	pathToURL.Store(shortURL, string(body))
+	s.pathToURL[shortURL] = string(body)
 	res.WriteHeader(http.StatusCreated)
 
 	_, writeErr := res.Write([]byte(resURL))
@@ -56,20 +80,20 @@ func methodPostHandler(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func methodGetHandler(res http.ResponseWriter, req *http.Request) {
+func (s *Server) methodGetHandler(res http.ResponseWriter, req *http.Request) {
 	path := strings.TrimPrefix(req.URL.Path, "/")
 	if path == "" {
-		http.Error(res, "Short URL is missing.", http.StatusBadRequest)
+		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
 		return
 	}
 
-	targetURL, exists := pathToURL.Load(path)
+	targetURL, exists := s.pathToURL[path]
 	if !exists {
-		http.Error(res, "URL doesn't found.", http.StatusBadRequest)
+		http.NotFound(res, req)
 		return
 	}
 
-	http.Redirect(res, req, targetURL.(string), http.StatusTemporaryRedirect)
+	http.Redirect(res, req, targetURL, http.StatusTemporaryRedirect)
 }
 
 func genShortURL(url string) string {
