@@ -100,3 +100,119 @@ func TestServer_methodGetHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestServer_methodGetHandler1(t *testing.T) {
+	type want struct {
+		expectedContentType string
+		expectedCode        int
+		expectedBody        string
+	}
+	tests := []struct {
+		name        string
+		server      *Server
+		method      string
+		requestBody string
+		want        want
+	}{
+		{
+			name:   "Post method without parameters",
+			server: NewServer(),
+			method: http.MethodPost,
+			want: want{
+				expectedContentType: "text/plain",
+				expectedCode:        http.StatusCreated,
+			},
+		},
+		{
+			name:        "Post method with url",
+			server:      NewServer(),
+			method:      http.MethodPost,
+			requestBody: `https://google.com`,
+			want: want{
+				expectedContentType: "text/plain",
+				expectedCode:        http.StatusCreated,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest(tt.method, "/", nil)
+			w := httptest.NewRecorder()
+
+			tt.server.methodPostHandler(w, r)
+
+			res := w.Result()
+
+			assert.Equal(t, tt.want.expectedCode, res.StatusCode)
+			assert.Equal(t, tt.want.expectedContentType, res.Header.Get("Content-Type"))
+
+			defer func() {
+				err := res.Body.Close()
+				if err != nil {
+					log.Fatal(err)
+				}
+			}()
+
+			resBody, err := io.ReadAll(res.Body)
+			assert.NoError(t, err)
+
+			if tt.want.expectedBody != "" {
+				assert.Equal(t, tt.want.expectedBody, string(resBody))
+			}
+		})
+	}
+}
+
+func TestServer_shortURLHandler(t *testing.T) {
+	type want struct {
+		expectedContentType string
+		expectedCode        int
+		expectedBody        string
+	}
+	tests := []struct {
+		name        string
+		server      *Server
+		method      string
+		requestBody string
+		want        want
+	}{
+		{
+			name:   "Delete method",
+			server: NewServer(),
+			method: http.MethodDelete,
+			want: want{
+				expectedContentType: "text/plain; charset=utf-8",
+				expectedCode:        http.StatusBadRequest,
+				expectedBody:        fmt.Sprintf("%s\n", ErrMethodNotAllowed.Error()),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest(tt.method, "/", nil)
+			w := httptest.NewRecorder()
+
+			tt.server.shortURLHandler(w, r)
+
+			res := w.Result()
+
+			assert.Equal(t, tt.want.expectedCode, res.StatusCode)
+			assert.Equal(t, tt.want.expectedContentType, res.Header.Get("Content-Type"))
+
+			defer func() {
+				err := res.Body.Close()
+				if err != nil {
+					log.Fatal(err)
+				}
+			}()
+
+			resBody, err := io.ReadAll(res.Body)
+			assert.NoError(t, err)
+
+			if tt.want.expectedBody != "" {
+				assert.Equal(t, tt.want.expectedBody, string(resBody))
+			}
+		})
+	}
+}
