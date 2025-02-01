@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -40,7 +39,10 @@ func (s *Server) ListenAndServe() {
 func (s *Server) mountHandlers() {
 	s.router.Post("/", s.methodPostHandler)
 	s.router.Get("/{shortURL}", s.methodGetHandler)
-	s.router.Get("/", s.methodGetHandler)
+	s.router.Get("/", func(res http.ResponseWriter, r *http.Request) {
+		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
+		return
+	})
 }
 
 func (s *Server) methodPostHandler(res http.ResponseWriter, req *http.Request) {
@@ -77,11 +79,7 @@ func (s *Server) methodPostHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) methodGetHandler(res http.ResponseWriter, req *http.Request) {
-	path := strings.TrimPrefix(req.URL.Path, "/")
-	if path == "" {
-		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
-		return
-	}
+	path := chi.URLParam(req, "shortURL")
 
 	targetURL, exists := s.pathToURL[path]
 	if !exists {

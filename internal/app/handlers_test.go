@@ -2,13 +2,20 @@ package app
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
 )
+
+func executeRequest(req *http.Request, s *Server) *httptest.ResponseRecorder {
+	r := httptest.NewRecorder()
+	s.router.ServeHTTP(r, req)
+	return r
+}
 
 func TestServer_methodGetHandler(t *testing.T) {
 	type want struct {
@@ -18,17 +25,17 @@ func TestServer_methodGetHandler(t *testing.T) {
 		expectedBody        string
 	}
 	tests := []struct {
-		name    string
-		server  *Server
-		method  string
-		request string
-		want    want
+		name   string
+		server *Server
+		method string
+		path   string
+		want   want
 	}{
 		{
-			name:    "Get method without id",
-			server:  NewServer(),
-			method:  http.MethodGet,
-			request: ``,
+			name:   "Get method without id",
+			server: NewServer(),
+			method: http.MethodGet,
+			path:   `/`,
 			want: want{
 				expectedContentType: "text/plain; charset=utf-8",
 				expectedCode:        http.StatusBadRequest,
@@ -38,12 +45,13 @@ func TestServer_methodGetHandler(t *testing.T) {
 		{
 			name: "Get method with existing id",
 			server: &Server{
+				router: chi.NewRouter(),
 				pathToURL: map[string]string{
 					"1": "https://google.com",
 				},
 			},
-			method:  http.MethodGet,
-			request: `1`,
+			method: http.MethodGet,
+			path:   `/1`,
 			want: want{
 				expectedContentType: "text/html; charset=utf-8",
 				expectedCode:        http.StatusTemporaryRedirect,
@@ -53,12 +61,13 @@ func TestServer_methodGetHandler(t *testing.T) {
 		{
 			name: "Get method with not existing id",
 			server: &Server{
+				router: chi.NewRouter(),
 				pathToURL: map[string]string{
 					"1": "https://google.com",
 				},
 			},
-			method:  http.MethodGet,
-			request: `2`,
+			method: http.MethodGet,
+			path:   `/2`,
 			want: want{
 				expectedContentType: "text/plain; charset=utf-8",
 				expectedCode:        http.StatusNotFound,
@@ -66,34 +75,22 @@ func TestServer_methodGetHandler(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := httptest.NewRequest(tt.method, fmt.Sprintf("/%s", tt.request), nil)
-			w := httptest.NewRecorder()
+			tt.server.mountHandlers()
+			req, _ := http.NewRequest(tt.method, tt.path, nil)
+			res := executeRequest(req, tt.server)
 
-			tt.server.methodGetHandler(w, r)
-
-			res := w.Result()
-
-			assert.Equal(t, tt.want.expectedCode, res.StatusCode)
-			assert.Equal(t, tt.want.expectedContentType, res.Header.Get("Content-Type"))
-
-			defer func() {
-				err := res.Body.Close()
-				if err != nil {
-					log.Fatal(err)
-				}
-			}()
-
-			resBody, err := io.ReadAll(res.Body)
-			assert.NoError(t, err)
+			assert.Equal(t, tt.want.expectedCode, res.Code)
+			assert.Equal(t, tt.want.expectedContentType, res.Header().Get("Content-Type"))
 
 			if tt.want.expectedLocation != "" {
-				assert.Equal(t, tt.want.expectedLocation, res.Header.Get("Location"))
+				assert.Equal(t, tt.want.expectedLocation, res.Header().Get("Location"))
 			}
 
 			if tt.want.expectedBody != "" {
-				assert.Equal(t, tt.want.expectedBody, string(resBody))
+				assert.Equal(t, tt.want.expectedBody, res.Body.String())
 			}
 		})
 	}
@@ -134,28 +131,15 @@ func TestServer_methodPostHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := httptest.NewRequest(tt.method, "/", nil)
-			w := httptest.NewRecorder()
+			tt.server.mountHandlers()
+			req, _ := http.NewRequest(http.MethodPost, "/", strings.NewReader(tt.requestBody))
+			res := executeRequest(req, tt.server)
 
-			tt.server.methodPostHandler(w, r)
-
-			res := w.Result()
-
-			assert.Equal(t, tt.want.expectedCode, res.StatusCode)
-			assert.Equal(t, tt.want.expectedContentType, res.Header.Get("Content-Type"))
-
-			defer func() {
-				err := res.Body.Close()
-				if err != nil {
-					log.Fatal(err)
-				}
-			}()
-
-			resBody, err := io.ReadAll(res.Body)
-			assert.NoError(t, err)
+			assert.Equal(t, tt.want.expectedCode, res.Code)
+			assert.Equal(t, tt.want.expectedContentType, res.Header().Get("Content-Type"))
 
 			if tt.want.expectedBody != "" {
-				assert.Equal(t, tt.want.expectedBody, string(resBody))
+				assert.Equal(t, tt.want.expectedBody, res.Body.String())
 			}
 		})
 	}
