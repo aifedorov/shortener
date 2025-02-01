@@ -41,7 +41,6 @@ func (s *Server) mountHandlers() {
 	s.router.Get("/{shortURL}", s.methodGetHandler)
 	s.router.Get("/", func(res http.ResponseWriter, r *http.Request) {
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
-		return
 	})
 }
 
