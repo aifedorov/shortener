@@ -37,8 +37,7 @@ func (s *Server) ListenAndServe() {
 	s.mountHandlers()
 
 	fmt.Println("Running server on", s.config.RunAddr)
-	addr := fmt.Sprintf("%s", s.config.RunAddr)
-	err := http.ListenAndServe(addr, s.router)
+	err := http.ListenAndServe(s.config.RunAddr, s.router)
 	if err != nil {
 		log.Fatal(err)
 	}
