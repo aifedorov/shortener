@@ -6,13 +6,13 @@ import (
 )
 
 type Config struct {
-	RunAddr      string `env:"SERVER_ADDRESS"`
-	ShortBaseURL string `env:"BASE_URL"`
+	RunAddr      string
+	ShortBaseURL string
 }
 
 func (cfg *Config) ParseFlags() {
-	flag.StringVar(&cfg.RunAddr, "a", ":8888", "address and port to run server")
-	flag.StringVar(&cfg.ShortBaseURL, "b", "http://localhost:8000", "address and port for short url")
+	flag.StringVar(&cfg.RunAddr, "a", ":8080", "address and port to run server")
+	flag.StringVar(&cfg.ShortBaseURL, "b", "http://localhost:8080", "address and port for short url")
 	flag.Parse()
 
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {

@@ -59,9 +59,8 @@ func (s *Server) methodPostHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
-	host := s.config.ShortBaseURL
 	shortURL := genShortURL(string(body))
-	resURL := host + "/" + shortURL
+	resURL := s.config.ShortBaseURL + "/" + shortURL
 
 	if _, ok := s.pathToURL[shortURL]; ok {
 		res.WriteHeader(http.StatusOK)
