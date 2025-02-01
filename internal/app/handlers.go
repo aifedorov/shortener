@@ -18,28 +18,29 @@ var (
 )
 
 type Server struct {
+	router    *chi.Mux
 	pathToURL map[string]string
 }
 
 func NewServer() *Server {
 	return &Server{
+		router:    chi.NewRouter(),
 		pathToURL: make(map[string]string),
 	}
 }
 
 func (s *Server) ListenAndServe() {
-	err := http.ListenAndServe(":8080", s.router())
+	s.mountHandlers()
+	err := http.ListenAndServe(":8080", s.router)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func (s *Server) router() chi.Router {
-	r := chi.NewRouter()
-	r.Post("/", s.methodPostHandler)
-	r.Get("/{shortURL}", s.methodGetHandler)
-	r.Get("/", s.methodGetHandler)
-	return r
+func (s *Server) mountHandlers() {
+	s.router.Post("/", s.methodPostHandler)
+	s.router.Get("/{shortURL}", s.methodGetHandler)
+	s.router.Get("/", s.methodGetHandler)
 }
 
 func (s *Server) methodPostHandler(res http.ResponseWriter, req *http.Request) {
