@@ -9,42 +9,37 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
 )
 
 var (
-	ErrShortURLMissing  = errors.New("short URL is missing")
-	ErrMethodNotAllowed = errors.New("method is not allowed")
+	ErrShortURLMissing = errors.New("short URL is missing")
 )
 
 type Server struct {
-	mux       *http.ServeMux
 	pathToURL map[string]string
 }
 
 func NewServer() *Server {
 	return &Server{
-		mux:       http.NewServeMux(),
 		pathToURL: make(map[string]string),
 	}
 }
 
 func (s *Server) ListenAndServe() {
-	s.mux.HandleFunc("/", s.shortURLHandler)
-	err := http.ListenAndServe(":8080", s.mux)
+	err := http.ListenAndServe(":8080", s.router())
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func (s *Server) shortURLHandler(res http.ResponseWriter, req *http.Request) {
-	switch req.Method {
-	case http.MethodPost:
-		s.methodPostHandler(res, req)
-	case http.MethodGet:
-		s.methodGetHandler(res, req)
-	default:
-		http.Error(res, ErrMethodNotAllowed.Error(), http.StatusBadRequest)
-	}
+func (s *Server) router() chi.Router {
+	r := chi.NewRouter()
+	r.Post("/", s.methodPostHandler)
+	r.Get("/{shortURL}", s.methodGetHandler)
+	r.Get("/", s.methodGetHandler)
+	return r
 }
 
 func (s *Server) methodPostHandler(res http.ResponseWriter, req *http.Request) {
