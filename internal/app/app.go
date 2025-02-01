@@ -10,6 +10,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/aifedorov/shortener/cmd/config"
 )
 
 var (
@@ -19,18 +21,24 @@ var (
 type Server struct {
 	router    *chi.Mux
 	pathToURL map[string]string
+	config    *config.Config
 }
 
 func NewServer() *Server {
 	return &Server{
 		router:    chi.NewRouter(),
 		pathToURL: make(map[string]string),
+		config:    new(config.Config),
 	}
 }
 
 func (s *Server) ListenAndServe() {
+	s.config.ParseFlags()
 	s.mountHandlers()
-	err := http.ListenAndServe(":8080", s.router)
+
+	fmt.Println("Running server on", s.config.RunAddr)
+	addr := fmt.Sprintf("%s", s.config.RunAddr)
+	err := http.ListenAndServe(addr, s.router)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,9 +60,9 @@ func (s *Server) methodPostHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 	}
 
-	host := req.Host
+	host := s.config.ShortURLAddr
 	shortURL := genShortURL(string(body))
-	resURL := fmt.Sprintf("http://%s/%s", host, shortURL)
+	resURL := host + "/" + shortURL
 
 	if _, ok := s.pathToURL[shortURL]; ok {
 		res.WriteHeader(http.StatusOK)
