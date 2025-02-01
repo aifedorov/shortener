@@ -60,7 +60,7 @@ func (s *Server) methodPostHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	shortURL := genShortURL(string(body))
-	resURL := s.config.ShortURLAddr + shortURL
+	resURL := s.config.ShortURLAddr + "/" + shortURL
 
 	if _, ok := s.pathToURL[shortURL]; ok {
 		res.WriteHeader(http.StatusOK)
