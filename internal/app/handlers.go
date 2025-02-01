@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
 	"net/http"
@@ -12,8 +13,7 @@ import (
 )
 
 var (
-	ErrShortURLMissing  = errors.New("short URL is missing")
-	ErrMethodNotAllowed = errors.New("method is not allowed")
+	ErrShortURLMissing = errors.New("short URL is missing")
 )
 
 type Server struct {
@@ -29,25 +29,17 @@ func NewServer() *Server {
 }
 
 func (s *Server) ListenAndServe() {
-	s.mux.HandleFunc("/", s.shortURLHandler)
-	err := http.ListenAndServe(":8080", s.mux)
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Fatal(http.ListenAndServe(":8080", s.router()))
 }
 
-func (s *Server) shortURLHandler(res http.ResponseWriter, req *http.Request) {
-	switch req.Method {
-	case http.MethodPost:
-		s.methodPostHandler(res, req)
-	case http.MethodGet:
-		s.methodGetHandler(res, req)
-	default:
-		http.Error(res, ErrMethodNotAllowed.Error(), http.StatusBadRequest)
-	}
+func (s *Server) router() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/", s.getHandler)
+	r.Post("/", s.postHandler)
+	return r
 }
 
-func (s *Server) methodPostHandler(res http.ResponseWriter, req *http.Request) {
+func (s *Server) postHandler(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/plain")
 
 	body, err := io.ReadAll(req.Body)
@@ -80,7 +72,7 @@ func (s *Server) methodPostHandler(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (s *Server) methodGetHandler(res http.ResponseWriter, req *http.Request) {
+func (s *Server) getHandler(res http.ResponseWriter, req *http.Request) {
 	path := strings.TrimPrefix(req.URL.Path, "/")
 	if path == "" {
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
