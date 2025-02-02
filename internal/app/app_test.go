@@ -11,12 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func executeRequest(req *http.Request, s *Server) *httptest.ResponseRecorder {
-	r := httptest.NewRecorder()
-	s.router.ServeHTTP(r, req)
-	return r
-}
-
 func TestServer_methodGetHandler(t *testing.T) {
 	type want struct {
 		expectedContentType string
@@ -79,7 +73,7 @@ func TestServer_methodGetHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.server.mountHandlers()
-			req, _ := http.NewRequest(tt.method, tt.path, nil)
+			req := httptest.NewRequest(tt.method, tt.path, nil)
 			res := executeRequest(req, tt.server)
 
 			assert.Equal(t, tt.want.expectedCode, res.Code)
@@ -132,7 +126,7 @@ func TestServer_methodPostHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.server.mountHandlers()
-			req, _ := http.NewRequest(http.MethodPost, "/", strings.NewReader(tt.requestBody))
+			req := httptest.NewRequest(tt.method, "/", strings.NewReader(tt.requestBody))
 			res := executeRequest(req, tt.server)
 
 			assert.Equal(t, tt.want.expectedCode, res.Code)
@@ -143,4 +137,10 @@ func TestServer_methodPostHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+func executeRequest(req *http.Request, s *Server) *httptest.ResponseRecorder {
+	r := httptest.NewRecorder()
+	s.router.ServeHTTP(r, req)
+	return r
 }
