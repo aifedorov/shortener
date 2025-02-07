@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/aifedorov/shortener/internal/app"
+	"github.com/aifedorov/shortener/internal/http"
 )
 
 func main() {
-	server := app.NewServer()
-	server.ListenAndServe()
+	srv := server.NewServer()
+	srv.ListenAndServe()
 }

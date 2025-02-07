@@ -10,6 +10,10 @@ type Config struct {
 	ShortBaseURL string
 }
 
+func NewConfig() *Config {
+	return &Config{}
+}
+
 func (cfg *Config) ParseFlags() {
 	flag.StringVar(&cfg.RunAddr, "a", ":8080", "address and port to run server")
 	flag.StringVar(&cfg.ShortBaseURL, "b", "http://localhost:8080", "address and port for short url")

@@ -1,7 +1,8 @@
-package app
+package server
 
 import (
 	"fmt"
+	"github.com/aifedorov/shortener/internal/storage"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,7 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestServer_methodGetHandler(t *testing.T) {
+func TestServer_redirect(t *testing.T) {
+	t.Parallel()
+
 	type want struct {
 		expectedContentType string
 		expectedCode        int
@@ -40,8 +43,10 @@ func TestServer_methodGetHandler(t *testing.T) {
 			name: "Get method with existing id",
 			server: &Server{
 				router: chi.NewRouter(),
-				pathToURL: map[string]string{
-					"1": "https://google.com",
+				store: &storage.MemoryStorage{
+					PathToURL: map[string]string{
+						"1": "https://google.com",
+					},
 				},
 			},
 			method: http.MethodGet,
@@ -56,8 +61,10 @@ func TestServer_methodGetHandler(t *testing.T) {
 			name: "Get method with not existing id",
 			server: &Server{
 				router: chi.NewRouter(),
-				pathToURL: map[string]string{
-					"1": "https://google.com",
+				store: &storage.MemoryStorage{
+					PathToURL: map[string]string{
+						"1": "https://google.com",
+					},
 				},
 			},
 			method: http.MethodGet,
@@ -90,7 +97,7 @@ func TestServer_methodGetHandler(t *testing.T) {
 	}
 }
 
-func TestServer_methodPostHandler(t *testing.T) {
+func TestServer_save_url(t *testing.T) {
 	type want struct {
 		expectedContentType string
 		expectedCode        int
