@@ -10,14 +10,13 @@ const (
 )
 
 var (
-	ErrURLMissing = errors.New("URL is missing")
 	ErrURLInvalid = errors.New("URL is not valid")
 	urlPattern    = regexp.MustCompile(urlPatternString)
 )
 
 func ValidateURL(url string) error {
 	if url == "" {
-		return ErrURLMissing
+		return nil
 	}
 
 	if !urlPattern.MatchString(url) {

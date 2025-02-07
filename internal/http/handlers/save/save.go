@@ -19,21 +19,18 @@ func NewURLSaveHandler(config *config.Config, store storage.Storage) http.Handle
 		res.Header().Set("Content-Type", "text/plain")
 
 		body, readErr := io.ReadAll(req.Body)
-		if errors.Is(readErr, io.EOF) {
-			http.Error(res, ErrURLMissing.Error(), http.StatusBadRequest)
-			return
-		}
 		if readErr != nil {
 			http.Error(res, readErr.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err := validate.ValidateURL(string(body)); err != nil {
+		url := string(body)
+		if err := validate.ValidateURL(url); err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		resURL, saveErr := store.SaveURL(config.ShortBaseURL, string(body))
+		resURL, saveErr := store.SaveURL(config.ShortBaseURL, url)
 		if errors.Is(saveErr, storage.ErrURLExists) {
 			res.WriteHeader(http.StatusOK)
 			_, err := res.Write([]byte(resURL))

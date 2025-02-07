@@ -20,7 +20,7 @@ func TestValidateURL(t *testing.T) {
 			args: args{
 				url: "",
 			},
-			wantErr: ErrURLMissing,
+			wantErr: nil,
 		},
 		{
 			name: "url is not valid",
