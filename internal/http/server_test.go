@@ -2,11 +2,12 @@ package server
 
 import (
 	"fmt"
-	"github.com/aifedorov/shortener/internal/storage"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/aifedorov/shortener/internal/storage"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -98,6 +99,8 @@ func TestServer_redirect(t *testing.T) {
 }
 
 func TestServer_save_url(t *testing.T) {
+	t.Parallel()
+
 	type want struct {
 		expectedContentType string
 		expectedCode        int

@@ -7,6 +7,7 @@ import (
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/storage"
+	"github.com/aifedorov/shortener/lib/validate"
 )
 
 var (
@@ -24,6 +25,11 @@ func NewURLSaveHandler(config *config.Config, store storage.Storage) http.Handle
 		}
 		if readErr != nil {
 			http.Error(res, readErr.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := validate.ValidateURL(string(body)); err != nil {
+			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}
 
