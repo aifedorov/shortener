@@ -1,4 +1,4 @@
-package save_url
+package save
 
 import (
 	"errors"

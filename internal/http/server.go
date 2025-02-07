@@ -10,7 +10,7 @@ import (
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/http/handlers/redirect"
-	"github.com/aifedorov/shortener/internal/http/handlers/save_url"
+	"github.com/aifedorov/shortener/internal/http/handlers/save"
 	"github.com/aifedorov/shortener/internal/storage"
 )
 
@@ -44,7 +44,7 @@ func (s *Server) ListenAndServe() {
 }
 
 func (s *Server) mountHandlers() {
-	s.router.Post("/", save_url.NewURLSaveHandler(s.config, s.store))
+	s.router.Post("/", save.NewURLSaveHandler(s.config, s.store))
 	s.router.Get("/{shortURL}", redirect.NewRedirectHandler(s.store))
 	s.router.Get("/", func(res http.ResponseWriter, r *http.Request) {
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
