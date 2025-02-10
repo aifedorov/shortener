@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	urlPatternString = `^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	urlPatternString = `^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?$`
 )
 
 var (
@@ -14,12 +14,8 @@ var (
 	urlPattern    = regexp.MustCompile(urlPatternString)
 )
 
-func ValidateURL(url string) error {
-	if url == "" {
-		return nil
-	}
-
-	if !urlPattern.MatchString(url) {
+func CheckURL(url string) error {
+	if url != "" && !urlPattern.MatchString(url) {
 		return ErrURLInvalid
 	}
 

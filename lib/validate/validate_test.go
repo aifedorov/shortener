@@ -30,23 +30,44 @@ func TestValidateURL(t *testing.T) {
 			wantErr: ErrURLInvalid,
 		},
 		{
-			name: "url is valid",
+			name: "url is valid: https://google.com",
 			args: args{
 				url: "https://google.com",
 			},
 			wantErr: nil,
 		},
 		{
-			name: "complex url is valid",
+			name: "url is valid: http://google.com",
+			args: args{
+				url: "http://google.com",
+			},
+			wantErr: nil,
+		},
+		{
+			name: "url is valid: https://google.com/",
+			args: args{
+				url: "https://google.com",
+			},
+			wantErr: nil,
+		},
+		{
+			name: "complex url is valid: https://google.tr.com",
 			args: args{
 				url: "https://google.tr.com",
+			},
+			wantErr: nil,
+		},
+		{
+			name: "complex url is valid: https://google.tr.com/",
+			args: args{
+				url: "https://google.tr.com/",
 			},
 			wantErr: nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateURL(tt.args.url)
+			err := CheckURL(tt.args.url)
 			assert.ErrorIs(t, err, tt.wantErr)
 		})
 	}

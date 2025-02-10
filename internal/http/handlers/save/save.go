@@ -2,16 +2,12 @@ package save
 
 import (
 	"errors"
+	"github.com/aifedorov/shortener/lib/validate"
 	"io"
 	"net/http"
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/storage"
-	"github.com/aifedorov/shortener/lib/validate"
-)
-
-var (
-	ErrURLMissing = errors.New("URL is missing")
 )
 
 func NewURLSaveHandler(config *config.Config, store storage.Storage) http.HandlerFunc {
@@ -25,7 +21,7 @@ func NewURLSaveHandler(config *config.Config, store storage.Storage) http.Handle
 		}
 
 		url := string(body)
-		if err := validate.ValidateURL(url); err != nil {
+		if err := validate.CheckURL(url); err != nil {
 			http.Error(res, err.Error(), http.StatusBadRequest)
 			return
 		}

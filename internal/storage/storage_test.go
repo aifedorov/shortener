@@ -20,7 +20,7 @@ func TestMemoryStorage_GetURL(t *testing.T) {
 		wantErr error
 	}{
 		{
-			name: "Get URL with existing value",
+			name: "get URL with existing value",
 			fields: fields{
 				pathToURL: map[string]string{
 					"1": "https://google.com",
@@ -33,7 +33,7 @@ func TestMemoryStorage_GetURL(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name: "Get URL with not existing value",
+			name: "get URL with not existing value",
 			fields: fields{
 				pathToURL: map[string]string{
 					"1": "https://google.com",
@@ -75,7 +75,7 @@ func TestMemoryStorage_SaveURL(t *testing.T) {
 		wantErr    error
 	}{
 		{
-			name: "Save new URL",
+			name: "save new URL with empty targetURL",
 			fields: fields{
 				pathToURL: make(map[string]string),
 			},
@@ -87,7 +87,7 @@ func TestMemoryStorage_SaveURL(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name: "Save new URL",
+			name: "save new URL with valid targetURL",
 			fields: fields{
 				pathToURL: make(map[string]string),
 			},
