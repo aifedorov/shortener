@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	urlPatternString = `^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?$`
+	urlPatternString = `(https?:\/\/)([\da-z\.-]+)\.([a-z]{2,6})(\/[\da-z\.-]+)*`
 )
 
 var (

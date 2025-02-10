@@ -44,13 +44,6 @@ func TestValidateURL(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			name: "url is valid: https://google.com/",
-			args: args{
-				url: "https://google.com",
-			},
-			wantErr: nil,
-		},
-		{
 			name: "complex url is valid: https://google.tr.com",
 			args: args{
 				url: "https://google.tr.com",
@@ -61,6 +54,13 @@ func TestValidateURL(t *testing.T) {
 			name: "complex url is valid: https://google.tr.com/",
 			args: args{
 				url: "https://google.tr.com/",
+			},
+			wantErr: nil,
+		},
+		{
+			name: "complex url is valid: https://google.tr.com/2a/2b/2c",
+			args: args{
+				url: "https://google.tr.com/2a/2b/2c",
 			},
 			wantErr: nil,
 		},
