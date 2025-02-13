@@ -2,7 +2,8 @@ package server
 
 import (
 	"errors"
-	"fmt"
+	"github.com/aifedorov/shortener/internal/logger"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
 
@@ -32,14 +33,21 @@ func NewServer() *Server {
 	}
 }
 
-func (s *Server) ListenAndServe() {
+func (s *Server) Run() {
 	s.config.ParseFlags()
+
+	if err := logger.Initialize(s.config.LogLevel); err != nil {
+		log.Fatal(err)
+	}
+
+	s.router.Use(logger.RequestLogger)
+	s.router.Use(logger.ResponseLogger)
 	s.mountHandlers()
 
-	fmt.Println("Running server on", s.config.RunAddr)
+	logger.Log.Info("Running server on", zap.String("address", s.config.RunAddr))
 	err := http.ListenAndServe(s.config.RunAddr, s.router)
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Fatal("Failed to start server", zap.Error(err))
 	}
 }
 
@@ -47,6 +55,7 @@ func (s *Server) mountHandlers() {
 	s.router.Post("/", save.NewURLSaveHandler(s.config, s.store))
 	s.router.Get("/{shortURL}", redirect.NewRedirectHandler(s.store))
 	s.router.Get("/", func(res http.ResponseWriter, r *http.Request) {
+		logger.Log.Debug("got request with bad method", zap.String("method", r.Method))
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
 	})
 }

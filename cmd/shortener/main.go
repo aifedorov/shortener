@@ -6,5 +6,5 @@ import (
 
 func main() {
 	srv := server.NewServer()
-	srv.ListenAndServe()
+	srv.Run()
 }
