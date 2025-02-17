@@ -2,7 +2,9 @@ package server
 
 import (
 	"errors"
+	"github.com/aifedorov/shortener/internal/http/handlers/save"
 	"github.com/aifedorov/shortener/internal/logger"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 	"log"
 	"net/http"
@@ -11,7 +13,6 @@ import (
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/http/handlers/redirect"
-	"github.com/aifedorov/shortener/internal/http/handlers/save"
 	"github.com/aifedorov/shortener/internal/storage"
 )
 
@@ -42,6 +43,7 @@ func (s *Server) Run() {
 
 	s.router.Use(logger.RequestLogger)
 	s.router.Use(logger.ResponseLogger)
+	s.router.Use(middleware.AllowContentType("application/json", "text/plain"))
 	s.mountHandlers()
 
 	logger.Log.Info("Running server on", zap.String("address", s.config.RunAddr))
@@ -52,7 +54,8 @@ func (s *Server) Run() {
 }
 
 func (s *Server) mountHandlers() {
-	s.router.Post("/", save.NewURLSaveHandler(s.config, s.store))
+	s.router.Post("/", save.NewSavePlainTextHandler(s.config, s.store))
+	s.router.Post("/api/shorten", save.NewSaveJSONHandler(s.config, s.store))
 	s.router.Get("/{shortURL}", redirect.NewRedirectHandler(s.store))
 	s.router.Get("/", func(res http.ResponseWriter, r *http.Request) {
 		logger.Log.Debug("got request with bad method", zap.String("method", r.Method))

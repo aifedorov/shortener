@@ -11,6 +11,7 @@ type (
 	responseData struct {
 		status int
 		size   int
+		body   []byte
 	}
 
 	loggingResponseWriter struct {
@@ -22,6 +23,7 @@ type (
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.size += size
+	r.responseData.body = append(r.responseData.body, b...)
 	return size, err
 }
 
@@ -30,7 +32,7 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
-var Log *zap.Logger = zap.NewNop()
+var Log = zap.NewNop()
 
 func Initialize(level string) error {
 	lvl, err := zap.ParseAtomicLevel(level)
@@ -56,10 +58,9 @@ func RequestLogger(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		duration := time.Since(start)
 
-		Log.Info("HTTP request complete",
+		Log.Info("HTTP request ==>",
 			zap.String("method", r.Method),
-			zap.String("host", r.Host),
-			zap.String("path", r.URL.String()),
+			zap.String("URL", r.URL.String()),
 			zap.Duration("duration", duration),
 		)
 	})
@@ -77,9 +78,10 @@ func ResponseLogger(next http.Handler) http.Handler {
 		next.ServeHTTP(&lw, r)
 		duration := time.Since(start)
 
-		Log.Info("HTTP response complete",
+		Log.Info("HTTP response <==",
 			zap.Int("status", rd.status),
 			zap.Int("size", rd.size),
+			zap.String("body", string(rd.body)),
 			zap.Duration("duration", duration),
 		)
 	})
