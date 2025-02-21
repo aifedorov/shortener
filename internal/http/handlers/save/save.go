@@ -15,12 +15,6 @@ import (
 	"github.com/aifedorov/shortener/lib/validate"
 )
 
-var (
-	internalServerErrMsg     = "internal server error"
-	invalidRequestBodyErrMsg = "invalidate request body"
-	invalidURLErrMsg         = "invalidate URL"
-)
-
 type Request struct {
 	URL string `json:"url"`
 }
@@ -44,14 +38,14 @@ func NewSavePlainTextHandler(config *config.Config, store storage.Storage) http.
 		body, readErr := io.ReadAll(req.Body)
 		if readErr != nil {
 			logger.Log.Error("failed to read request body", zap.Error(readErr))
-			http.Error(rw, invalidRequestBodyErrMsg, http.StatusBadRequest)
+			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
 		url := string(body)
 		if err := validate.CheckURL(url); err != nil {
 			logger.Log.Error("invalid url", zap.String("url", url))
-			http.Error(rw, invalidURLErrMsg, http.StatusBadRequest)
+			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
@@ -61,7 +55,7 @@ func NewSavePlainTextHandler(config *config.Config, store storage.Storage) http.
 			_, writeErr := rw.Write([]byte(resURL))
 			if writeErr != nil {
 				logger.Log.Error("Failed to write response", zap.Error(writeErr))
-				http.Error(rw, internalServerErrMsg, http.StatusInternalServerError)
+				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
 		}
@@ -70,7 +64,7 @@ func NewSavePlainTextHandler(config *config.Config, store storage.Storage) http.
 		_, writeErr := rw.Write([]byte(resURL))
 		if writeErr != nil {
 			logger.Log.Error("Failed to write response", zap.Error(writeErr))
-			http.Error(rw, internalServerErrMsg, http.StatusInternalServerError)
+			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -85,14 +79,14 @@ func NewSaveJSONHandler(config *config.Config, store storage.Storage) http.Handl
 
 		if err := json.NewDecoder(req.Body).Decode(&reqBody); err != nil {
 			logger.Log.Error("failed to decode request", zap.Error(err))
-			http.Error(rw, invalidRequestBodyErrMsg, http.StatusBadRequest)
+			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 		logger.Log.Debug("request body decoded", zap.String("request", reqBody.String()))
 
 		if err := validate.CheckURL(reqBody.URL); err != nil {
 			logger.Log.Error("invalid url parameter in request", zap.String("url", reqBody.URL))
-			http.Error(rw, invalidURLErrMsg, http.StatusBadRequest)
+			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
@@ -100,7 +94,7 @@ func NewSaveJSONHandler(config *config.Config, store storage.Storage) http.Handl
 		if errors.Is(saveErr, storage.ErrURLExists) {
 			rw.WriteHeader(http.StatusOK)
 			if err := encodeResponse(rw, resURL); err != nil {
-				http.Error(rw, internalServerErrMsg, http.StatusInternalServerError)
+				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
 
@@ -110,7 +104,7 @@ func NewSaveJSONHandler(config *config.Config, store storage.Storage) http.Handl
 
 		rw.WriteHeader(http.StatusCreated)
 		if err := encodeResponse(rw, resURL); err != nil {
-			http.Error(rw, internalServerErrMsg, http.StatusInternalServerError)
+			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 

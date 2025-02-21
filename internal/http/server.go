@@ -2,23 +2,31 @@ package server
 
 import (
 	"errors"
-	"github.com/aifedorov/shortener/internal/http/handlers/save"
-	"github.com/aifedorov/shortener/internal/logger"
-	"github.com/go-chi/chi/v5/middleware"
-	"go.uber.org/zap"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/http/handlers/redirect"
+	"github.com/aifedorov/shortener/internal/http/handlers/save"
+	"github.com/aifedorov/shortener/internal/logger"
+	"github.com/aifedorov/shortener/internal/middleware"
 	"github.com/aifedorov/shortener/internal/storage"
 )
 
 var (
 	ErrShortURLMissing = errors.New("short URL is missing")
 )
+
+var supportedContentTypes = []string{
+	"application/json",
+	"text/plain",
+	"text/html",
+	"application/x-gzip",
+}
 
 type Server struct {
 	router *chi.Mux
@@ -41,9 +49,12 @@ func (s *Server) Run() {
 		log.Fatal(err)
 	}
 
+	s.router.Use(chimiddleware.AllowContentType(supportedContentTypes...))
+
+	s.router.Use(middleware.GzipMiddleware)
 	s.router.Use(logger.RequestLogger)
 	s.router.Use(logger.ResponseLogger)
-	s.router.Use(middleware.AllowContentType("application/json", "text/plain"))
+
 	s.mountHandlers()
 
 	logger.Log.Info("Running server on", zap.String("address", s.config.RunAddr))
