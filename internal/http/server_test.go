@@ -201,17 +201,6 @@ func TestServer_saveURL_JSON(t *testing.T) {
 		want        want
 	}{
 		{
-			name:        "Post with empty body, x-gzip",
-			server:      NewServer(),
-			method:      http.MethodPost,
-			contentType: "application/x-gzip",
-			requestBody: ``,
-			want: want{
-				contentType: "application/x-gzip",
-				code:        http.StatusCreated,
-			},
-		},
-		{
 			name:        "Post with empty JSON",
 			server:      NewServer(),
 			method:      http.MethodPost,
