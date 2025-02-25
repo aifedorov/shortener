@@ -6,9 +6,10 @@ import (
 )
 
 type Config struct {
-	RunAddr      string
-	ShortBaseURL string
-	LogLevel     string
+	RunAddr         string
+	ShortBaseURL    string
+	LogLevel        string
+	FileStoragePath string
 }
 
 func NewConfig() *Config {
@@ -19,6 +20,7 @@ func (cfg *Config) ParseFlags() {
 	flag.StringVar(&cfg.RunAddr, "a", ":8080", "address and port to run server")
 	flag.StringVar(&cfg.ShortBaseURL, "b", "http://localhost:8080", "address and port for short url")
 	flag.StringVar(&cfg.LogLevel, "l", "info", "log level")
+	flag.StringVar(&cfg.FileStoragePath, "f", "storage", "file storage path")
 	flag.Parse()
 
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
@@ -29,7 +31,11 @@ func (cfg *Config) ParseFlags() {
 		cfg.ShortBaseURL = envShortBaseURL
 	}
 
-	if logLevel := os.Getenv("LOG_LEVEL"); logLevel != "" {
-		cfg.LogLevel = logLevel
+	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
+		cfg.LogLevel = envLogLevel
+	}
+
+	if envFileStoragePath := os.Getenv("FILE_STORAGE_PATH"); envFileStoragePath != "" {
+		cfg.FileStoragePath = envFileStoragePath
 	}
 }

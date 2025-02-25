@@ -34,17 +34,15 @@ type Server struct {
 	config *config.Config
 }
 
-func NewServer() *Server {
+func NewServer(cfg *config.Config, store storage.Storage) *Server {
 	return &Server{
 		router: chi.NewRouter(),
-		store:  storage.NewMemoryStorage(),
-		config: config.NewConfig(),
+		store:  store,
+		config: cfg,
 	}
 }
 
 func (s *Server) Run() {
-	s.config.ParseFlags()
-
 	if err := logger.Initialize(s.config.LogLevel); err != nil {
 		log.Fatal(err)
 	}

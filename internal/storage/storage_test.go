@@ -43,7 +43,7 @@ func TestMemoryStorage_GetURL(t *testing.T) {
 				shortURL: "2",
 			},
 			want:    "",
-			wantErr: ErrURLNotFound,
+			wantErr: ErrShortURLNotFound,
 		},
 	}
 	for _, tt := range tests {
