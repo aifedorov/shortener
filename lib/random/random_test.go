@@ -11,46 +11,47 @@ func TestGenRandomString(t *testing.T) {
 		size int
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name       string
+		randomizer Randomizer
+		str        string
+		wantErr    bool
 	}{
 		{
 			name: "size is zero value",
-			args: args{
-				s:    "abc",
-				size: 0,
+			randomizer: &Service{
+				ShortURLSize: 0,
 			},
+			str:     "abc",
 			wantErr: true,
 		},
 		{
 			name: "size is negative value",
-			args: args{
-				s:    "abc",
-				size: -1,
+			randomizer: &Service{
+				ShortURLSize: -1,
 			},
+			str:     "abc",
 			wantErr: true,
 		},
 		{
 			name: "size is valid",
-			args: args{
-				s:    "abc",
-				size: 2,
+			randomizer: &Service{
+				ShortURLSize: 2,
 			},
+			str:     "abc",
 			wantErr: false,
 		},
 		{
 			name: "size is too big value",
-			args: args{
-				s:    "abc",
-				size: 33,
+			randomizer: &Service{
+				ShortURLSize: 33,
 			},
+			str:     "abc",
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := GenRandomString(tt.args.s, tt.args.size)
+			_, err := tt.randomizer.GenRandomString(tt.str)
 			assert.Equal(t, tt.wantErr, err != nil)
 		})
 	}

@@ -14,10 +14,23 @@ var (
 	urlPattern    = regexp.MustCompile(urlPatternString)
 )
 
-func CheckURL(url string) error {
-	if url != "" && !urlPattern.MatchString(url) {
+type URLChecker interface {
+	CheckURL(url string) error
+}
+
+type Service struct {
+	URLPattern *regexp.Regexp
+}
+
+func NewService() *Service {
+	return &Service{
+		URLPattern: regexp.MustCompile(urlPatternString),
+	}
+}
+
+func (s *Service) CheckURL(url string) error {
+	if url != "" && !s.URLPattern.MatchString(url) {
 		return ErrURLInvalid
 	}
-
 	return nil
 }
