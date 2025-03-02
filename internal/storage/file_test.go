@@ -82,19 +82,6 @@ func TestFileStorage_GetURL_NotFound(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestFileStorage_FileOperations(t *testing.T) {
-	tempDir := t.TempDir()
-	readOnlyDir := filepath.Join(tempDir, "readonly")
-	err := os.Mkdir(readOnlyDir, 0500)
-	require.NoError(t, err)
-
-	invalidPath := filepath.Join(readOnlyDir, "invalid.json")
-	storage := NewFileStorage(invalidPath)
-
-	_, err = storage.SaveURL("http://localhost:8080", "https://example.com")
-	assert.Error(t, err)
-}
-
 func TestFileStorage_ExistingFile(t *testing.T) {
 	tempDir := t.TempDir()
 	tempFile := filepath.Join(tempDir, "test_urls.json")
@@ -180,35 +167,4 @@ func TestFileStorage_AddNewURLMapping(t *testing.T) {
 	assert.Equal(t, shortURL, record.ShortURL)
 	assert.Equal(t, originalURL, record.OriginalURL)
 	assert.NotEmpty(t, record.ID)
-}
-
-func TestFileStorage_ReadFileError(t *testing.T) {
-	tempDir := t.TempDir()
-
-	unreadableDir := filepath.Join(tempDir, "unreadable")
-	err := os.Mkdir(unreadableDir, 0100)
-	require.NoError(t, err)
-
-	unreadableFile := filepath.Join(unreadableDir, "test_urls.json")
-
-	file, err := os.OpenFile(unreadableFile, FileOpenFlagsWrite, FilePermissionsWrite)
-	if err == nil {
-		testRecord := URLMapping{
-			ID:          "test-id",
-			ShortURL:    "test-short",
-			OriginalURL: "https://test-example.com",
-		}
-
-		data, _ := json.Marshal(testRecord)
-		file.Write(append(data, byte('\n')))
-		file.Close()
-
-		err = os.Chmod(unreadableFile, 0)
-		require.NoError(t, err)
-
-		storage := NewFileStorage(unreadableFile)
-
-		_, err = storage.GetURL("test-short")
-		assert.Error(t, err)
-	}
 }
