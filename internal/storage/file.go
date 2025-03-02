@@ -11,6 +11,13 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	FilePermissionsWrite = 0644
+	FilePermissionsRead  = 0444
+	FileOpenFlagsWrite   = os.O_APPEND | os.O_CREATE | os.O_WRONLY
+	FileOpenFlagsRead    = os.O_RDONLY
+)
+
 type URLMapping struct {
 	ID          string `json:"id"`
 	ShortURL    string `json:"short_url"`
@@ -20,17 +27,19 @@ type URLMapping struct {
 type FileStorage struct {
 	fname     string
 	pathToURL []URLMapping
+	rand      random.Randomizer
 }
 
 func NewFileStorage(filePath string) *FileStorage {
 	return &FileStorage{
 		fname:     filePath,
 		pathToURL: make([]URLMapping, 0),
+		rand:      random.NewService(),
 	}
 }
 
 func (fs *FileStorage) addNewURLMapping(shortURL string, originalURL string) error {
-	file, err := os.OpenFile(fs.fname, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(fs.fname, FileOpenFlagsWrite, FilePermissionsWrite)
 	if err != nil {
 		logger.Log.Error("storage: failed to open file", zap.String("file", fs.fname), zap.Error(err))
 		return err
@@ -54,12 +63,28 @@ func (fs *FileStorage) addNewURLMapping(shortURL string, originalURL string) err
 		return err
 	}
 
-	_, err = file.Write(append(data, byte('\n')))
-	return err
+	writer := bufio.NewWriter(file)
+
+	if _, err := writer.Write(data); err != nil {
+		logger.Log.Error("storage: failed to write data to buffer", zap.String("file", fs.fname), zap.Error(err))
+		return err
+	}
+
+	if err := writer.WriteByte('\n'); err != nil {
+		logger.Log.Error("storage: failed to write newline to buffer", zap.String("file", fs.fname), zap.Error(err))
+		return err
+	}
+
+	if err := writer.Flush(); err != nil {
+		logger.Log.Error("storage: failed to flush buffer to disk", zap.String("file", fs.fname), zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 func (fs *FileStorage) GetURL(shortURL string) (string, error) {
-	file, err := os.Open(fs.fname)
+	file, err := os.OpenFile(fs.fname, FileOpenFlagsRead, FilePermissionsRead)
 	if err != nil {
 		logger.Log.Error("storage: failed to open file", zap.String("file", fs.fname), zap.Error(err))
 		return "", err
@@ -88,7 +113,7 @@ func (fs *FileStorage) GetURL(shortURL string) (string, error) {
 }
 
 func (fs *FileStorage) SaveURL(baseURL, targetURL string) (string, error) {
-	alias, genErr := random.GenRandomString(targetURL, shortURLSize)
+	alias, genErr := fs.rand.GenRandomString(targetURL)
 	if genErr != nil {
 		logger.Log.Error("storage: generate random string failed", zap.Error(genErr))
 		return "", ErrGenShortURL

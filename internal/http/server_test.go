@@ -2,15 +2,15 @@ package server
 
 import (
 	"fmt"
-	"github.com/aifedorov/shortener/internal/config"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/aifedorov/shortener/internal/config"
+
 	"github.com/aifedorov/shortener/internal/storage"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,14 +43,14 @@ func TestServer_redirect(t *testing.T) {
 		},
 		{
 			name: "Get method with existing id",
-			server: &Server{
-				router: chi.NewRouter(),
-				store: &storage.MemoryStorage{
-					PathToURL: map[string]string{
-						"1": "https://google.com",
-					},
-				},
-			},
+			server: NewServer(
+				config.NewConfig(),
+				func() *storage.MemoryStorage {
+					ms := storage.NewMemoryStorage()
+					ms.PathToURL.Store("1", "https://google.com")
+					return ms
+				}(),
+			),
 			method: http.MethodGet,
 			path:   `/1`,
 			want: want{
@@ -61,14 +61,14 @@ func TestServer_redirect(t *testing.T) {
 		},
 		{
 			name: "Get method with not existing id",
-			server: &Server{
-				router: chi.NewRouter(),
-				store: &storage.MemoryStorage{
-					PathToURL: map[string]string{
-						"1": "https://google.com",
-					},
-				},
-			},
+			server: NewServer(
+				config.NewConfig(),
+				func() *storage.MemoryStorage {
+					ms := storage.NewMemoryStorage()
+					ms.PathToURL.Store("1", "https://google.com")
+					return ms
+				}(),
+			),
 			method: http.MethodGet,
 			path:   `/2`,
 			want: want{
@@ -151,9 +151,11 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 			name: "Post method with existed url",
 			server: NewServer(
 				config.NewConfig(),
-				&storage.MemoryStorage{
-					PathToURL: map[string]string{"BQRvJsg-jIg": "https://google.com"},
-				},
+				func() *storage.MemoryStorage {
+					ms := storage.NewMemoryStorage()
+					ms.PathToURL.Store("BQRvJsg-jIg", "https://google.com")
+					return ms
+				}(),
 			),
 			method:      http.MethodPost,
 			contentType: "text/plain",
@@ -243,15 +245,14 @@ func TestServer_saveURL_JSON(t *testing.T) {
 		},
 		{
 			name: "Post method with existed URL",
-			server: &Server{
-				router: chi.NewRouter(),
-				store: &storage.MemoryStorage{
-					PathToURL: map[string]string{
-						"BQRvJsg-jIg": "https://google.com",
-					},
-				},
-				config: config.NewConfig(),
-			},
+			server: NewServer(
+				config.NewConfig(),
+				func() *storage.MemoryStorage {
+					ms := storage.NewMemoryStorage()
+					ms.PathToURL.Store("BQRvJsg-jIg", "https://google.com")
+					return ms
+				}(),
+			),
 			method:      http.MethodPost,
 			contentType: "application/json",
 			requestBody: `{"url": "https://google.com"}`,

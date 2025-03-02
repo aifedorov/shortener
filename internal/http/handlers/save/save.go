@@ -31,7 +31,7 @@ func (r Response) String() string {
 	return fmt.Sprintf("{shortURL: %s}", r.ShortURL)
 }
 
-func NewSavePlainTextHandler(config *config.Config, store storage.Storage) http.HandlerFunc {
+func NewSavePlainTextHandler(config *config.Config, store storage.Storage, urlChecker validate.URLChecker) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Content-Type", "text/plain")
 
@@ -43,7 +43,7 @@ func NewSavePlainTextHandler(config *config.Config, store storage.Storage) http.
 		}
 
 		url := string(body)
-		if err := validate.CheckURL(url); err != nil {
+		if err := urlChecker.CheckURL(url); err != nil {
 			logger.Log.Error("invalid url", zap.String("url", url))
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
@@ -70,7 +70,7 @@ func NewSavePlainTextHandler(config *config.Config, store storage.Storage) http.
 	}
 }
 
-func NewSaveJSONHandler(config *config.Config, store storage.Storage) http.HandlerFunc {
+func NewSaveJSONHandler(config *config.Config, store storage.Storage, urlChecker validate.URLChecker) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
@@ -84,7 +84,7 @@ func NewSaveJSONHandler(config *config.Config, store storage.Storage) http.Handl
 		}
 		logger.Log.Debug("request body decoded", zap.String("request", reqBody.String()))
 
-		if err := validate.CheckURL(reqBody.URL); err != nil {
+		if err := urlChecker.CheckURL(reqBody.URL); err != nil {
 			logger.Log.Error("invalid url parameter in request", zap.String("url", reqBody.URL))
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
