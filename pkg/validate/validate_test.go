@@ -7,9 +7,6 @@ import (
 )
 
 func TestValidateURL(t *testing.T) {
-	type args struct {
-		url string
-	}
 	tests := []struct {
 		name       string
 		urlChecker URLChecker
