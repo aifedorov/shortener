@@ -2,13 +2,13 @@ package server
 
 import (
 	"errors"
+	"github.com/aifedorov/shortener/internal/http/handlers/ping"
 	"github.com/aifedorov/shortener/pkg/logger"
-	"log"
-	"net/http"
-
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
+	"log"
+	"net/http"
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/http/handlers/redirect"
@@ -72,4 +72,5 @@ func (s *Server) mountHandlers() {
 		logger.Log.Debug("got request with bad method", zap.String("method", r.Method))
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
 	})
+	s.router.Get("/ping", ping.NewPingHandler(s.config.DataSourceName))
 }
