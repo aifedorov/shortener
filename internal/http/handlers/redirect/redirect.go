@@ -1,19 +1,19 @@
 package redirect
 
 import (
+	"github.com/aifedorov/shortener/pkg/logger"
 	"go.uber.org/zap"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/aifedorov/shortener/internal/logger"
-	"github.com/aifedorov/shortener/internal/storage"
+	"github.com/aifedorov/shortener/internal/repository"
 )
 
-func NewRedirectHandler(storage storage.Storage) http.HandlerFunc {
+func NewRedirectHandler(storage repository.Repository) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		short := chi.URLParam(req, "shortURL")
-		target, err := storage.GetURL(short)
+		target, err := storage.Get(short)
 		if err != nil {
 			logger.Log.Debug("short url is not found", zap.String("short url", short))
 			http.NotFound(res, req)

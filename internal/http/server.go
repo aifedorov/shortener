@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"github.com/aifedorov/shortener/pkg/logger"
 	"log"
 	"net/http"
 
@@ -12,10 +13,9 @@ import (
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/http/handlers/redirect"
 	"github.com/aifedorov/shortener/internal/http/handlers/save"
-	"github.com/aifedorov/shortener/internal/logger"
 	"github.com/aifedorov/shortener/internal/middleware"
-	"github.com/aifedorov/shortener/internal/storage"
-	"github.com/aifedorov/shortener/lib/validate"
+	"github.com/aifedorov/shortener/internal/repository"
+	"github.com/aifedorov/shortener/pkg/validate"
 )
 
 var (
@@ -32,14 +32,14 @@ var supportedContentTypes = []string{
 type Server struct {
 	router     *chi.Mux
 	config     *config.Config
-	store      storage.Storage
+	repo       repository.Repository
 	urlChecker validate.URLChecker
 }
 
-func NewServer(cfg *config.Config, store storage.Storage) *Server {
+func NewServer(cfg *config.Config, repo repository.Repository) *Server {
 	return &Server{
 		router:     chi.NewRouter(),
-		store:      store,
+		repo:       repo,
 		config:     cfg,
 		urlChecker: validate.NewService(),
 	}
@@ -65,9 +65,9 @@ func (s *Server) Run() {
 }
 
 func (s *Server) mountHandlers() {
-	s.router.Post("/", save.NewSavePlainTextHandler(s.config, s.store, s.urlChecker))
-	s.router.Post("/api/shorten", save.NewSaveJSONHandler(s.config, s.store, s.urlChecker))
-	s.router.Get("/{shortURL}", redirect.NewRedirectHandler(s.store))
+	s.router.Post("/", save.NewSavePlainTextHandler(s.config, s.repo, s.urlChecker))
+	s.router.Post("/api/shorten", save.NewSaveJSONHandler(s.config, s.repo, s.urlChecker))
+	s.router.Get("/{shortURL}", redirect.NewRedirectHandler(s.repo))
 	s.router.Get("/", func(res http.ResponseWriter, r *http.Request) {
 		logger.Log.Debug("got request with bad method", zap.String("method", r.Method))
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)

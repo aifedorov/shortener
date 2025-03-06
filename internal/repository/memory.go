@@ -1,25 +1,25 @@
-package storage
+package repository
 
 import (
+	"github.com/aifedorov/shortener/pkg/logger"
 	"sync"
 
-	"github.com/aifedorov/shortener/internal/logger"
-	"github.com/aifedorov/shortener/lib/random"
+	"github.com/aifedorov/shortener/pkg/random"
 	"go.uber.org/zap"
 )
 
-type MemoryStorage struct {
+type MemoryRepository struct {
 	PathToURL sync.Map
 	rand      random.Randomizer
 }
 
-func NewMemoryStorage() *MemoryStorage {
-	return &MemoryStorage{
+func NewMemoryRepository() *MemoryRepository {
+	return &MemoryRepository{
 		rand: random.NewService(),
 	}
 }
 
-func (ms *MemoryStorage) GetURL(shortURL string) (string, error) {
+func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 	targetURL, exists := ms.PathToURL.Load(shortURL)
 	if !exists {
 		logger.Log.Debug("short url not found", zap.String("shortURL", shortURL))
@@ -32,7 +32,7 @@ func (ms *MemoryStorage) GetURL(shortURL string) (string, error) {
 	return "", ErrShortURLNotFound
 }
 
-func (ms *MemoryStorage) SaveURL(baseURL, targetURL string) (string, error) {
+func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
 	shortURL, genErr := ms.rand.GenRandomString(targetURL)
 	if genErr != nil {
 		logger.Log.Debug("generation of random string failed", zap.Error(genErr))
