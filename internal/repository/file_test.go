@@ -1,4 +1,4 @@
-package storage
+package repository
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ func TestFileStorage_addNewURLMapping(t *testing.T) {
 	tempDir := t.TempDir()
 	tempFile := filepath.Join(tempDir, "test_urls.json")
 
-	storage := NewFileStorage(tempFile)
+	storage := NewFileRepository(tempFile)
 
 	shortURL := "qwerty123"
 	originalURL := "https://google.com"
@@ -38,12 +38,12 @@ func TestFileStorage_SaveURL(t *testing.T) {
 	tempDir := t.TempDir()
 	tempFile := filepath.Join(tempDir, "test_urls.json")
 
-	storage := NewFileStorage(tempFile)
+	storage := NewFileRepository(tempFile)
 
 	baseURL := "http://localhost:8080"
 	targetURL := "https://example.com"
 
-	shortURL, err := storage.SaveURL(baseURL, targetURL)
+	shortURL, err := storage.Store(baseURL, targetURL)
 	require.NoError(t, err)
 	require.NotEmpty(t, shortURL)
 
@@ -57,17 +57,17 @@ func TestFileStorage_GetURL(t *testing.T) {
 	tempDir := t.TempDir()
 	tempFile := filepath.Join(tempDir, "test_urls.json")
 
-	storage := NewFileStorage(tempFile)
+	storage := NewFileRepository(tempFile)
 
 	baseURL := "http://localhost:8080"
 	targetURL := "https://example.com"
 
-	shortURL, err := storage.SaveURL(baseURL, targetURL)
+	shortURL, err := storage.Store(baseURL, targetURL)
 	require.NoError(t, err)
 
 	shortID := shortURL[len(baseURL)+1:]
 
-	originalURL, err := storage.GetURL(shortID)
+	originalURL, err := storage.Get(shortID)
 	require.NoError(t, err)
 	assert.Equal(t, targetURL, originalURL)
 }
@@ -76,9 +76,9 @@ func TestFileStorage_GetURL_NotFound(t *testing.T) {
 	tempDir := t.TempDir()
 	tempFile := filepath.Join(tempDir, "test_urls.json")
 
-	storage := NewFileStorage(tempFile)
+	storage := NewFileRepository(tempFile)
 
-	_, err := storage.GetURL("non_existent_short_url")
+	_, err := storage.Get("non_existent_short_url")
 	assert.Error(t, err)
 }
 
@@ -102,16 +102,16 @@ func TestFileStorage_ExistingFile(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, file.Close())
 
-	storage := NewFileStorage(tempFile)
+	storage := NewFileRepository(tempFile)
 
-	originalURL, err := storage.GetURL("test-short")
+	originalURL, err := storage.Get("test-short")
 	require.NoError(t, err)
 	assert.Equal(t, "https://test-example.com", originalURL)
 
 	baseURL := "http://localhost:8080"
 	targetURL := "https://new-example.com"
 
-	shortURL, err := storage.SaveURL(baseURL, targetURL)
+	shortURL, err := storage.Store(baseURL, targetURL)
 	require.NoError(t, err)
 	require.NotEmpty(t, shortURL)
 }
@@ -127,15 +127,15 @@ func TestFileStorage_InvalidJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, file.Close())
 
-	storage := NewFileStorage(tempFile)
+	storage := NewFileRepository(tempFile)
 
-	_, err = storage.GetURL("any-short-url")
+	_, err = storage.Get("any-short-url")
 	assert.Error(t, err)
 
 	baseURL := "http://localhost:8080"
 	targetURL := "https://example.com"
 
-	shortURL, err := storage.SaveURL(baseURL, targetURL)
+	shortURL, err := storage.Store(baseURL, targetURL)
 	require.NoError(t, err)
 	require.NotEmpty(t, shortURL)
 }
@@ -144,7 +144,7 @@ func TestFileStorage_AddNewURLMapping(t *testing.T) {
 	tempDir := t.TempDir()
 	tempFile := filepath.Join(tempDir, "test_urls.json")
 
-	storage := NewFileStorage(tempFile)
+	storage := NewFileRepository(tempFile)
 
 	shortURL := "test-short"
 	originalURL := "https://example.com"
@@ -157,7 +157,12 @@ func TestFileStorage_AddNewURLMapping(t *testing.T) {
 
 	file, err := os.Open(tempFile)
 	require.NoError(t, err)
-	defer file.Close()
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			assert.Fail(t, "failed to close file")
+		}
+	}()
 
 	var record URLMapping
 	decoder := json.NewDecoder(file)
