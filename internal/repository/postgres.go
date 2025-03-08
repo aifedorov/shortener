@@ -7,6 +7,7 @@ import (
 
 	"github.com/aifedorov/shortener/pkg/logger"
 	"github.com/aifedorov/shortener/pkg/random"
+	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 )
@@ -78,21 +79,22 @@ func (p *PostgresRepository) Get(shortURL string) (string, error) {
 }
 
 func (p *PostgresRepository) Store(baseURL, targetURL string) (string, error) {
+	logger.Log.Debug("postgres: generating short url", zap.String("url", targetURL))
 	alias, genErr := p.rand.GenRandomString(targetURL)
 	if genErr != nil {
 		logger.Log.Error("postgres: generate random string failed", zap.Error(genErr))
 		return "", ErrGenShortURL
 	}
 
-	shortURL := baseURL + "/" + alias
-	query := "INSERT INTO urls(correlation_id, alias, original_url) VALUES ($1, $2, $3);"
-	_, err := p.db.ExecContext(p.ctx, query, alias, targetURL)
+	logger.Log.Debug("postgres: inserting url", zap.String("alias", alias), zap.String("url", targetURL))
+	query := "INSERT INTO urls(cid, alias, original_url) VALUES ($1, $2, $3);"
+	_, err := p.db.ExecContext(p.ctx, query, uuid.NewString(), alias, targetURL)
 	if err != nil {
 		logger.Log.Error("postgres: failed to insert url", zap.Error(err))
 		return "", err
 	}
 
-	logger.Log.Debug("postgres: stored url", zap.String("short_url", shortURL), zap.String("original_url", targetURL))
+	shortURL := baseURL + "/" + alias
 	return shortURL, nil
 }
 
@@ -117,7 +119,7 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 			return nil, ErrGenShortURL
 		}
 
-		query := "INSERT INTO urls(correlation_id, alias, original_url) VALUES ($1, $2, $3);"
+		query := "INSERT INTO urls(cid, alias, original_url) VALUES ($1, $2, $3);"
 		_, err := tx.ExecContext(p.ctx, query, url.CID, alias, url.OriginalURL)
 		if err != nil {
 			logger.Log.Error("postgres: failed to insert url", zap.Error(err))
@@ -140,7 +142,7 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 func createTable(ctx context.Context, db *sql.DB) error {
 	query := `CREATE TABLE IF NOT EXISTS urls (
     		id SERIAL PRIMARY KEY,
-    		correlation_id CHAR(36) NOT NULL,
+    		cid CHAR(36) NOT NULL,
 			alias TEXT NOT NULL,
 		 	original_url TEXT NOT NULL,
 		 	created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
