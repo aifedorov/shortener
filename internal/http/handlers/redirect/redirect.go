@@ -10,10 +10,10 @@ import (
 	"github.com/aifedorov/shortener/internal/repository"
 )
 
-func NewRedirectHandler(storage repository.Repository) http.HandlerFunc {
+func NewRedirectHandler(repo repository.Repository) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
 		short := chi.URLParam(req, "shortURL")
-		target, err := storage.Get(short)
+		target, err := repo.Get(short)
 		if err != nil {
 			logger.Log.Debug("short url is not found", zap.String("short url", short))
 			http.NotFound(res, req)

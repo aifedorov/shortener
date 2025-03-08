@@ -10,7 +10,7 @@ type Config struct {
 	ShortBaseURL    string
 	LogLevel        string
 	FileStoragePath string
-	DataSourceName  string
+	DSN             string
 }
 
 func NewConfig() *Config {
@@ -21,8 +21,8 @@ func (cfg *Config) ParseFlags() {
 	flag.StringVar(&cfg.RunAddr, "a", ":8080", "address and port to run server")
 	flag.StringVar(&cfg.ShortBaseURL, "b", "http://localhost:8080", "address and port for short url")
 	flag.StringVar(&cfg.LogLevel, "l", "info", "log level")
-	flag.StringVar(&cfg.FileStoragePath, "f", "repository", "file repository path")
-	flag.StringVar(&cfg.DataSourceName, "d", "postgres://shortener1:shortener@localhost:5432/shortener", "postgres connection string")
+	flag.StringVar(&cfg.FileStoragePath, "f", "", "file repository path")
+	flag.StringVar(&cfg.DSN, "d", "", "postgres connection string")
 	flag.Parse()
 
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
@@ -42,6 +42,6 @@ func (cfg *Config) ParseFlags() {
 	}
 
 	if envDSN := os.Getenv("DATABASE_DSN"); envDSN != "" {
-		cfg.DataSourceName = envDSN
+		cfg.DSN = envDSN
 	}
 }

@@ -72,5 +72,5 @@ func (s *Server) mountHandlers() {
 		logger.Log.Debug("got request with bad method", zap.String("method", r.Method))
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
 	})
-	s.router.Get("/ping", ping.NewPingHandler(s.config.DataSourceName))
+	s.router.Get("/ping", ping.NewPingHandler(s.repo))
 }

@@ -1,36 +1,23 @@
 package ping
 
 import (
-	"context"
-	"database/sql"
-	"github.com/aifedorov/shortener/pkg/logger"
-	"go.uber.org/zap"
 	"net/http"
-	"time"
+
+	"github.com/aifedorov/shortener/internal/repository"
+	"github.com/aifedorov/shortener/pkg/logger"
 )
 
-func NewPingHandler(dsn string) http.HandlerFunc {
+func NewPingHandler(repo repository.Repository) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
-		db, err := sql.Open("pgx", dsn)
-		if err != nil {
-			logger.Log.Error("failed to open database", zap.Error(err))
-			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-		defer func() {
-			err := db.Close()
+		if pgr, ok := repo.(*repository.PostgresRepository); ok {
+			err := pgr.Connect(req.Context())
 			if err != nil {
-				logger.Log.Error("failed to close database", zap.Error(err))
+				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
 			}
-		}()
-
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		if err = db.PingContext(ctx); err != nil {
-			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
 		}
 
+		logger.Log.Info("ping: use file or in memory storage")
 		rw.WriteHeader(http.StatusOK)
 	}
 }

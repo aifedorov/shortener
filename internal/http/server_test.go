@@ -279,6 +279,56 @@ func TestServer_saveURL_JSON(t *testing.T) {
 	}
 }
 
+func TestNewPingHandler(t *testing.T) {
+	t.Parallel()
+
+	type want struct {
+		code int
+	}
+	tests := []struct {
+		name string
+		cfg  *config.Config
+		want want
+	}{
+		{
+			name: "ping in memory storage",
+			cfg:  &config.Config{},
+			want: want{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name: "ping file storage",
+			cfg: &config.Config{
+				FileStoragePath: "tmp",
+			},
+			want: want{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name: "ping database storage",
+			cfg: &config.Config{
+				DSN: "postgres",
+			},
+			want: want{
+				code: http.StatusInternalServerError,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := NewServer(tt.cfg, repository.NewRepository(tt.cfg))
+			server.mountHandlers()
+
+			req := httptest.NewRequest(http.MethodGet, "/ping", strings.NewReader(""))
+			res := executeRequest(req, server)
+
+			assert.Equal(t, tt.want.code, res.Code)
+		})
+	}
+}
+
 func executeRequest(req *http.Request, s *Server) *httptest.ResponseRecorder {
 	r := httptest.NewRecorder()
 	s.router.ServeHTTP(r, req)
