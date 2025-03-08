@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/pkg/logger"
@@ -13,6 +14,9 @@ var (
 )
 
 type Repository interface {
+	Run(ctx context.Context) error
+	Ping(ctx context.Context) error
+	Close() error
 	Get(shortURL string) (string, error)
 	Store(baseURL, targetURL string) (string, error)
 }

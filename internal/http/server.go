@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"github.com/aifedorov/shortener/internal/http/handlers/ping"
 	"github.com/aifedorov/shortener/pkg/logger"
@@ -34,6 +35,7 @@ type Server struct {
 	config     *config.Config
 	repo       repository.Repository
 	urlChecker validate.URLChecker
+	ctx        context.Context
 }
 
 func NewServer(cfg *config.Config, repo repository.Repository) *Server {
@@ -42,6 +44,7 @@ func NewServer(cfg *config.Config, repo repository.Repository) *Server {
 		repo:       repo,
 		config:     cfg,
 		urlChecker: validate.NewService(),
+		ctx:        context.Background(),
 	}
 }
 
@@ -49,6 +52,17 @@ func (s *Server) Run() {
 	if err := logger.Initialize(s.config.LogLevel); err != nil {
 		log.Fatal(err)
 	}
+
+	err := s.repo.Run(s.ctx)
+	if err != nil {
+		logger.Log.Fatal("server: repository failed to run", zap.Error(err))
+	}
+	defer func() {
+		err := s.repo.Close()
+		if err != nil {
+			logger.Log.Fatal("server: failed to close repository", zap.Error(err))
+		}
+	}()
 
 	s.router.Use(chimiddleware.AllowContentType(supportedContentTypes...))
 	s.router.Use(middleware.GzipMiddleware)
@@ -58,9 +72,9 @@ func (s *Server) Run() {
 	s.mountHandlers()
 
 	logger.Log.Info("Running server on", zap.String("address", s.config.RunAddr))
-	err := http.ListenAndServe(s.config.RunAddr, s.router)
-	if err != nil {
-		logger.Log.Fatal("Failed to start server", zap.Error(err))
+	lsErr := http.ListenAndServe(s.config.RunAddr, s.router)
+	if lsErr != nil {
+		logger.Log.Fatal("Failed to start server", zap.Error(lsErr))
 	}
 }
 

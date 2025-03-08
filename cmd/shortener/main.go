@@ -12,7 +12,7 @@ func main() {
 	cfg := config.NewConfig()
 	cfg.ParseFlags()
 
-	repo := repository.NewFileRepository(cfg.FileStoragePath)
+	repo := repository.NewRepository(cfg)
 	srv := server.NewServer(cfg, repo)
 
 	srv.Run()

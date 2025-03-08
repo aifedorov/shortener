@@ -306,15 +306,6 @@ func TestNewPingHandler(t *testing.T) {
 				code: http.StatusOK,
 			},
 		},
-		{
-			name: "ping database storage",
-			cfg: &config.Config{
-				DSN: "postgres",
-			},
-			want: want{
-				code: http.StatusInternalServerError,
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

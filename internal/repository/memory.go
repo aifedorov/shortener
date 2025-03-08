@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"github.com/aifedorov/shortener/pkg/logger"
 	"sync"
 
@@ -17,6 +18,18 @@ func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
 		rand: random.NewService(),
 	}
+}
+
+func (ms *MemoryRepository) Run(_ context.Context) error {
+	return nil
+}
+
+func (ms *MemoryRepository) Ping(_ context.Context) error {
+	return nil
+}
+
+func (ms *MemoryRepository) Close() error {
+	return nil
 }
 
 func (ms *MemoryRepository) Get(shortURL string) (string, error) {

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"github.com/aifedorov/shortener/pkg/logger"
 	"os"
@@ -38,48 +39,15 @@ func NewFileRepository(filePath string) *FileRepository {
 	}
 }
 
-func (fs *FileRepository) addNewURLMapping(shortURL string, originalURL string) error {
-	file, err := os.OpenFile(fs.fname, FileOpenFlagsWrite, FilePermissionsWrite)
-	if err != nil {
-		logger.Log.Error("repository: failed to open file", zap.String("file", fs.fname), zap.Error(err))
-		return err
-	}
-	defer func() {
-		err := file.Close()
-		if err != nil {
-			logger.Log.Error("repository: failed to close file", zap.String("file", fs.fname), zap.Error(err))
-		}
-	}()
+func (fs *FileRepository) Run(_ context.Context) error {
+	return nil
+}
 
-	record := URLMapping{
-		ID:          uuid.New().String(),
-		ShortURL:    shortURL,
-		OriginalURL: originalURL,
-	}
+func (fs *FileRepository) Ping(_ context.Context) error {
+	return nil
+}
 
-	data, err := json.Marshal(record)
-	if err != nil {
-		logger.Log.Error("repository: failed to marshal record", zap.String("file", fs.fname), zap.Error(err))
-		return err
-	}
-
-	writer := bufio.NewWriter(file)
-
-	if _, err := writer.Write(data); err != nil {
-		logger.Log.Error("repository: failed to write data to buffer", zap.String("file", fs.fname), zap.Error(err))
-		return err
-	}
-
-	if err := writer.WriteByte('\n'); err != nil {
-		logger.Log.Error("repository: failed to write newline to buffer", zap.String("file", fs.fname), zap.Error(err))
-		return err
-	}
-
-	if err := writer.Flush(); err != nil {
-		logger.Log.Error("repository: failed to flush buffer to disk", zap.String("file", fs.fname), zap.Error(err))
-		return err
-	}
-
+func (fs *FileRepository) Close() error {
 	return nil
 }
 
@@ -128,4 +96,49 @@ func (fs *FileRepository) Store(baseURL, targetURL string) (string, error) {
 
 	logger.Log.Debug("repository: saved url to file", zap.String("file", fs.fname), zap.String("res_url", shortURL))
 	return shortURL, nil
+}
+
+func (fs *FileRepository) addNewURLMapping(shortURL string, originalURL string) error {
+	file, err := os.OpenFile(fs.fname, FileOpenFlagsWrite, FilePermissionsWrite)
+	if err != nil {
+		logger.Log.Error("repository: failed to open file", zap.String("file", fs.fname), zap.Error(err))
+		return err
+	}
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			logger.Log.Error("repository: failed to close file", zap.String("file", fs.fname), zap.Error(err))
+		}
+	}()
+
+	record := URLMapping{
+		ID:          uuid.New().String(),
+		ShortURL:    shortURL,
+		OriginalURL: originalURL,
+	}
+
+	data, err := json.Marshal(record)
+	if err != nil {
+		logger.Log.Error("repository: failed to marshal record", zap.String("file", fs.fname), zap.Error(err))
+		return err
+	}
+
+	writer := bufio.NewWriter(file)
+
+	if _, err := writer.Write(data); err != nil {
+		logger.Log.Error("repository: failed to write data to buffer", zap.String("file", fs.fname), zap.Error(err))
+		return err
+	}
+
+	if err := writer.WriteByte('\n'); err != nil {
+		logger.Log.Error("repository: failed to write newline to buffer", zap.String("file", fs.fname), zap.Error(err))
+		return err
+	}
+
+	if err := writer.Flush(); err != nil {
+		logger.Log.Error("repository: failed to flush buffer to disk", zap.String("file", fs.fname), zap.Error(err))
+		return err
+	}
+
+	return nil
 }
