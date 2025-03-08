@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -309,7 +310,7 @@ func TestNewPingHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := NewServer(tt.cfg, repository.NewRepository(tt.cfg))
+			server := NewServer(tt.cfg, repository.NewRepository(context.TODO(), tt.cfg))
 			server.mountHandlers()
 
 			req := httptest.NewRequest(http.MethodGet, "/ping", strings.NewReader(""))

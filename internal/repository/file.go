@@ -2,7 +2,6 @@ package repository
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"github.com/aifedorov/shortener/pkg/logger"
 	"os"
@@ -39,11 +38,11 @@ func NewFileRepository(filePath string) *FileRepository {
 	}
 }
 
-func (fs *FileRepository) Run(_ context.Context) error {
+func (fs *FileRepository) Run() error {
 	return nil
 }
 
-func (fs *FileRepository) Ping(_ context.Context) error {
+func (fs *FileRepository) Ping() error {
 	return nil
 }
 

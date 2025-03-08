@@ -12,46 +12,46 @@ import (
 )
 
 type PostgresRepository struct {
+	ctx  context.Context
 	db   *sql.DB
 	dsn  string
 	rand random.Randomizer
 }
 
-func NewPosgresRepository(dsn string) *PostgresRepository {
+func NewPosgresRepository(ctx context.Context, dsn string) *PostgresRepository {
 	return &PostgresRepository{
+		ctx:  ctx,
 		dsn:  dsn,
 		rand: random.NewService(),
 	}
 }
 
-func (repo *PostgresRepository) Run(ctx context.Context) error {
-	logger.Log.Debug("postgres: opening db", zap.String("dsn", repo.dsn))
-	db, err := sql.Open("pgx", repo.dsn)
+func (p *PostgresRepository) Run() error {
+	logger.Log.Debug("postgres: opening db", zap.String("dsn", p.dsn))
+	db, err := sql.Open("pgx", p.dsn)
 	if err != nil {
 		logger.Log.Error("postgres: failed to open", zap.Error(err))
 		return err
 	}
-	repo.db = db
-	logger.Log.Debug("postgres: opened db")
+	p.db = db
 
 	logger.Log.Debug("postgres: creating table")
-	ctErr := createTable(ctx, db)
+	ctErr := createTable(p.ctx, db)
 	if ctErr != nil {
 		logger.Log.Error("postgres: failed to create table", zap.Error(err))
 		return err
 	}
 
-	logger.Log.Debug("postgres: table created")
 	return nil
 }
 
 const defaultDBTimeout = 3 * time.Second
 
-func (repo *PostgresRepository) Ping(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, defaultDBTimeout)
+func (p *PostgresRepository) Ping() error {
+	ctx, cancel := context.WithTimeout(p.ctx, defaultDBTimeout)
 	defer cancel()
 
-	if err := repo.db.PingContext(ctx); err != nil {
+	if err := p.db.PingContext(ctx); err != nil {
 		logger.Log.Error("postgres: failed to ping", zap.Error(err))
 		return err
 	}
@@ -60,19 +60,40 @@ func (repo *PostgresRepository) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (repo *PostgresRepository) Close() error {
+func (p *PostgresRepository) Close() error {
 	logger.Log.Debug("postgres: closing repository")
-	return repo.db.Close()
+	return p.db.Close()
 }
 
-func (repo *PostgresRepository) Get(_ string) (string, error) {
-	// TODO: implement me
-	return "", nil
+func (p *PostgresRepository) Get(shortURL string) (string, error) {
+	query := "SELECT original_url FROM urls WHERE alias = $1"
+	row := p.db.QueryRowContext(p.ctx, query, shortURL)
+	var originalURL string
+
+	err := row.Scan(&originalURL)
+	if err != nil {
+		return "", err
+	}
+	return originalURL, nil
 }
 
-func (repo *PostgresRepository) Store(_, _ string) (string, error) {
-	// TODO: implement me
-	return "", nil
+func (p *PostgresRepository) Store(baseURL, targetURL string) (string, error) {
+	alias, genErr := p.rand.GenRandomString(targetURL)
+	if genErr != nil {
+		logger.Log.Error("postgres: generate random string failed", zap.Error(genErr))
+		return "", ErrGenShortURL
+	}
+
+	shortURL := baseURL + "/" + alias
+	query := "INSERT INTO urls(alias, original_url) VALUES ($1, $2);"
+	_, err := p.db.ExecContext(p.ctx, query, alias, targetURL)
+	if err != nil {
+		logger.Log.Error("postgres: failed to insert url", zap.Error(err))
+		return "", err
+	}
+
+	logger.Log.Debug("postgres: stored url", zap.String("short_url", shortURL), zap.String("original_url", targetURL))
+	return shortURL, nil
 }
 
 func createTable(ctx context.Context, db *sql.DB) error {

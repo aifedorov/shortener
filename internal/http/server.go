@@ -53,7 +53,7 @@ func (s *Server) Run() {
 		log.Fatal(err)
 	}
 
-	err := s.repo.Run(s.ctx)
+	err := s.repo.Run()
 	if err != nil {
 		logger.Log.Fatal("server: repository failed to run", zap.Error(err))
 	}

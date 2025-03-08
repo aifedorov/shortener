@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"github.com/aifedorov/shortener/pkg/logger"
 	"sync"
 
@@ -20,11 +19,11 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
-func (ms *MemoryRepository) Run(_ context.Context) error {
+func (ms *MemoryRepository) Run() error {
 	return nil
 }
 
-func (ms *MemoryRepository) Ping(_ context.Context) error {
+func (ms *MemoryRepository) Ping() error {
 	return nil
 }
 

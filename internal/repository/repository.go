@@ -14,17 +14,17 @@ var (
 )
 
 type Repository interface {
-	Run(ctx context.Context) error
-	Ping(ctx context.Context) error
+	Run() error
+	Ping() error
 	Close() error
 	Get(shortURL string) (string, error)
 	Store(baseURL, targetURL string) (string, error)
 }
 
-func NewRepository(cfg *config.Config) Repository {
+func NewRepository(ctx context.Context, cfg *config.Config) Repository {
 	if cfg.DSN != "" {
 		logger.Log.Debug("repository: use posgres storage")
-		return NewPosgresRepository(cfg.DSN)
+		return NewPosgresRepository(ctx, cfg.DSN)
 	}
 	if cfg.FileStoragePath != "" {
 		logger.Log.Debug("repository: use file storage")
