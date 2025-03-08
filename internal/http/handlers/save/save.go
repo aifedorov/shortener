@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aifedorov/shortener/pkg/logger"
 	"io"
 	"net/http"
 
 	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/logger"
-	"github.com/aifedorov/shortener/internal/storage"
-	"github.com/aifedorov/shortener/lib/validate"
+	"github.com/aifedorov/shortener/internal/repository"
+	"github.com/aifedorov/shortener/pkg/validate"
 )
 
 type Request struct {
@@ -31,7 +31,7 @@ func (r Response) String() string {
 	return fmt.Sprintf("{shortURL: %s}", r.ShortURL)
 }
 
-func NewSavePlainTextHandler(config *config.Config, store storage.Storage, urlChecker validate.URLChecker) http.HandlerFunc {
+func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Content-Type", "text/plain")
 
@@ -49,8 +49,8 @@ func NewSavePlainTextHandler(config *config.Config, store storage.Storage, urlCh
 			return
 		}
 
-		resURL, saveErr := store.SaveURL(config.ShortBaseURL, url)
-		if errors.Is(saveErr, storage.ErrURLExists) {
+		resURL, saveErr := repo.Store(config.ShortBaseURL, url)
+		if errors.Is(saveErr, repository.ErrURLExists) {
 			rw.WriteHeader(http.StatusOK)
 			_, writeErr := rw.Write([]byte(resURL))
 			if writeErr != nil {
@@ -70,7 +70,7 @@ func NewSavePlainTextHandler(config *config.Config, store storage.Storage, urlCh
 	}
 }
 
-func NewSaveJSONHandler(config *config.Config, store storage.Storage, urlChecker validate.URLChecker) http.HandlerFunc {
+func NewSaveJSONHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
@@ -90,8 +90,8 @@ func NewSaveJSONHandler(config *config.Config, store storage.Storage, urlChecker
 			return
 		}
 
-		resURL, saveErr := store.SaveURL(config.ShortBaseURL, reqBody.URL)
-		if errors.Is(saveErr, storage.ErrURLExists) {
+		resURL, saveErr := repo.Store(config.ShortBaseURL, reqBody.URL)
+		if errors.Is(saveErr, repository.ErrURLExists) {
 			rw.WriteHeader(http.StatusOK)
 			if err := encodeResponse(rw, resURL); err != nil {
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

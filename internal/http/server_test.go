@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +10,7 @@ import (
 
 	"github.com/aifedorov/shortener/internal/config"
 
-	"github.com/aifedorov/shortener/internal/storage"
+	"github.com/aifedorov/shortener/internal/repository"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -32,7 +33,7 @@ func TestServer_redirect(t *testing.T) {
 	}{
 		{
 			name:   "Get method without id",
-			server: NewServer(config.NewConfig(), storage.NewMemoryStorage()),
+			server: NewServer(config.NewConfig(), repository.NewMemoryRepository()),
 			method: http.MethodGet,
 			path:   `/`,
 			want: want{
@@ -45,8 +46,8 @@ func TestServer_redirect(t *testing.T) {
 			name: "Get method with existing id",
 			server: NewServer(
 				config.NewConfig(),
-				func() *storage.MemoryStorage {
-					ms := storage.NewMemoryStorage()
+				func() *repository.MemoryRepository {
+					ms := repository.NewMemoryRepository()
 					ms.PathToURL.Store("1", "https://google.com")
 					return ms
 				}(),
@@ -63,8 +64,8 @@ func TestServer_redirect(t *testing.T) {
 			name: "Get method with not existing id",
 			server: NewServer(
 				config.NewConfig(),
-				func() *storage.MemoryStorage {
-					ms := storage.NewMemoryStorage()
+				func() *repository.MemoryRepository {
+					ms := repository.NewMemoryRepository()
 					ms.PathToURL.Store("1", "https://google.com")
 					return ms
 				}(),
@@ -117,7 +118,7 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 	}{
 		{
 			name:        "Post method without parameters",
-			server:      NewServer(config.NewConfig(), storage.NewMemoryStorage()),
+			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
 			method:      http.MethodPost,
 			contentType: "text/plain",
 			want: want{
@@ -127,7 +128,7 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 		},
 		{
 			name:        "Post method with valid url",
-			server:      NewServer(config.NewConfig(), storage.NewMemoryStorage()),
+			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
 			method:      http.MethodPost,
 			contentType: "text/plain",
 			requestBody: `https://google.com`,
@@ -138,7 +139,7 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 		},
 		{
 			name:        "Post method with invalid url",
-			server:      NewServer(config.NewConfig(), storage.NewMemoryStorage()),
+			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
 			method:      http.MethodPost,
 			contentType: "text/plain",
 			requestBody: `bad_data`,
@@ -151,8 +152,8 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 			name: "Post method with existed url",
 			server: NewServer(
 				config.NewConfig(),
-				func() *storage.MemoryStorage {
-					ms := storage.NewMemoryStorage()
+				func() *repository.MemoryRepository {
+					ms := repository.NewMemoryRepository()
 					ms.PathToURL.Store("BQRvJsg-jIg", "https://google.com")
 					return ms
 				}(),
@@ -201,7 +202,7 @@ func TestServer_saveURL_JSON(t *testing.T) {
 	}{
 		{
 			name:        "Post with empty JSON",
-			server:      NewServer(config.NewConfig(), storage.NewMemoryStorage()),
+			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
 			method:      http.MethodPost,
 			contentType: "application/json",
 			requestBody: `{}`,
@@ -212,7 +213,7 @@ func TestServer_saveURL_JSON(t *testing.T) {
 		},
 		{
 			name:        "Post method with valid JSON",
-			server:      NewServer(config.NewConfig(), storage.NewMemoryStorage()),
+			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
 			method:      http.MethodPost,
 			contentType: "application/json",
 			requestBody: `{"url": "https://practicum.yandex.ru"}`,
@@ -223,7 +224,7 @@ func TestServer_saveURL_JSON(t *testing.T) {
 		},
 		{
 			name:        "Post method with invalid JSON",
-			server:      NewServer(config.NewConfig(), storage.NewMemoryStorage()),
+			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
 			method:      http.MethodPost,
 			contentType: "application/json",
 			requestBody: `{"url": "https://practicum.yandex.ru}`,
@@ -234,7 +235,7 @@ func TestServer_saveURL_JSON(t *testing.T) {
 		},
 		{
 			name:        "Post method with invalid URL parameter",
-			server:      NewServer(config.NewConfig(), storage.NewMemoryStorage()),
+			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
 			method:      http.MethodPost,
 			contentType: "application/json",
 			requestBody: `{"url": "bad_data"}`,
@@ -247,8 +248,8 @@ func TestServer_saveURL_JSON(t *testing.T) {
 			name: "Post method with existed URL",
 			server: NewServer(
 				config.NewConfig(),
-				func() *storage.MemoryStorage {
-					ms := storage.NewMemoryStorage()
+				func() *repository.MemoryRepository {
+					ms := repository.NewMemoryRepository()
 					ms.PathToURL.Store("BQRvJsg-jIg", "https://google.com")
 					return ms
 				}(),
@@ -275,6 +276,47 @@ func TestServer_saveURL_JSON(t *testing.T) {
 			if tt.want.body != "" {
 				assert.JSONEq(t, tt.want.body, res.Body.String())
 			}
+		})
+	}
+}
+
+func TestNewPingHandler(t *testing.T) {
+	t.Parallel()
+
+	type want struct {
+		code int
+	}
+	tests := []struct {
+		name string
+		cfg  *config.Config
+		want want
+	}{
+		{
+			name: "ping in memory storage",
+			cfg:  &config.Config{},
+			want: want{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name: "ping file storage",
+			cfg: &config.Config{
+				FileStoragePath: "tmp",
+			},
+			want: want{
+				code: http.StatusOK,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := NewServer(tt.cfg, repository.NewRepository(context.TODO(), tt.cfg))
+			server.mountHandlers()
+
+			req := httptest.NewRequest(http.MethodGet, "/ping", strings.NewReader(""))
+			res := executeRequest(req, server)
+
+			assert.Equal(t, tt.want.code, res.Code)
 		})
 	}
 }

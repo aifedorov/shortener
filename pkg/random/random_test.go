@@ -6,10 +6,6 @@ import (
 )
 
 func TestGenRandomString(t *testing.T) {
-	type args struct {
-		s    string
-		size int
-	}
 	tests := []struct {
 		name       string
 		randomizer Randomizer
