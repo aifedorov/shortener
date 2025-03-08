@@ -85,7 +85,7 @@ func (p *PostgresRepository) Store(baseURL, targetURL string) (string, error) {
 	}
 
 	shortURL := baseURL + "/" + alias
-	query := "INSERT INTO urls(alias, original_url) VALUES ($1, $2);"
+	query := "INSERT INTO urls(correlation_id, alias, original_url) VALUES ($1, $2, $3);"
 	_, err := p.db.ExecContext(p.ctx, query, alias, targetURL)
 	if err != nil {
 		logger.Log.Error("postgres: failed to insert url", zap.Error(err))
@@ -96,11 +96,54 @@ func (p *PostgresRepository) Store(baseURL, targetURL string) (string, error) {
 	return shortURL, nil
 }
 
+func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error) {
+	if len(urls) == 0 {
+		return nil, nil
+	}
+
+	logger.Log.Debug("postgres: begin transaction for storing batch of urls")
+	tx, err := p.db.Begin()
+	if err != nil {
+		logger.Log.Error("postgres: failed to begin transaction", zap.Error(err))
+		return nil, err
+	}
+
+	logger.Log.Debug("postgres: storing batch of urls", zap.Int("count", len(urls)))
+	res := make([]URLOutput, len(urls))
+	for i, url := range urls {
+		alias, genErr := p.rand.GenRandomString(url.OriginalURL)
+		if genErr != nil {
+			logger.Log.Error("postgres: generate random string failed", zap.Error(genErr))
+			return nil, ErrGenShortURL
+		}
+
+		query := "INSERT INTO urls(correlation_id, alias, original_url) VALUES ($1, $2, $3);"
+		_, err := tx.ExecContext(p.ctx, query, url.CID, alias, url.OriginalURL)
+		if err != nil {
+			logger.Log.Error("postgres: failed to insert url", zap.Error(err))
+			return nil, err
+		}
+
+		ou := URLOutput{
+			CID:      url.CID,
+			ShortURL: baseURL + "/" + alias,
+		}
+		res[i] = ou
+		logger.Log.Debug("postgres: url stored", zap.String("cid", ou.CID), zap.String("url", ou.ShortURL))
+	}
+
+	logger.Log.Debug("postgres: urls stored", zap.Int("count", len(res)))
+	logger.Log.Debug("postgres: commiting transaction for storing batch of urls")
+	return res, tx.Commit()
+}
+
 func createTable(ctx context.Context, db *sql.DB) error {
 	query := `CREATE TABLE IF NOT EXISTS urls (
-    		id SERIAL,
+    		id SERIAL PRIMARY KEY,
+    		correlation_id CHAR(36) NOT NULL,
 			alias TEXT NOT NULL,
-		 	original_url TEXT NOT NULL
+		 	original_url TEXT NOT NULL,
+		 	created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
 		`
 	ctx, cancel := context.WithTimeout(ctx, defaultDBTimeout)

@@ -59,3 +59,8 @@ func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
 
 	return resURL, nil
 }
+
+func (ms *MemoryRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error) {
+	// TODO: implement me
+	return nil, nil
+}

@@ -97,6 +97,11 @@ func (fs *FileRepository) Store(baseURL, targetURL string) (string, error) {
 	return shortURL, nil
 }
 
+func (fs *FileRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error) {
+	// TODO: implement me
+	return nil, nil
+}
+
 func (fs *FileRepository) addNewURLMapping(shortURL string, originalURL string) error {
 	file, err := os.OpenFile(fs.fname, FileOpenFlagsWrite, FilePermissionsWrite)
 	if err != nil {

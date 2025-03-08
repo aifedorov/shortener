@@ -19,6 +19,17 @@ type Repository interface {
 	Close() error
 	Get(shortURL string) (string, error)
 	Store(baseURL, targetURL string) (string, error)
+	StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error)
+}
+
+type URLInput struct {
+	CID         string
+	OriginalURL string
+}
+
+type URLOutput struct {
+	CID      string
+	ShortURL string
 }
 
 func NewRepository(ctx context.Context, cfg *config.Config) Repository {
