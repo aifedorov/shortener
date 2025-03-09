@@ -15,6 +15,5 @@ func main() {
 
 	repo := repository.NewRepository(context.Background(), cfg)
 	srv := server.NewServer(cfg, repo)
-
 	srv.Run()
 }

@@ -84,7 +84,7 @@ func (s *Server) mountHandlers() {
 	s.router.Post("/api/shorten/batch", save.NewSaveJSONBatchHandler(s.config, s.repo, s.urlChecker))
 	s.router.Get("/{shortURL}", redirect.NewRedirectHandler(s.repo))
 	s.router.Get("/", func(res http.ResponseWriter, r *http.Request) {
-		logger.Log.Debug("got request with bad method", zap.String("method", r.Method))
+		logger.Log.Debug("got request with bad data", zap.String("method", r.Method))
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
 	})
 	s.router.Get("/ping", ping.NewPingHandler(s.repo))

@@ -10,7 +10,7 @@ const (
 )
 
 var (
-	ErrURLInvalid = errors.New("URL is not valid")
+	ErrURLInvalid = errors.New("url is not valid")
 )
 
 type URLChecker interface {

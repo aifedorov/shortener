@@ -107,6 +107,7 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 	tx, err := p.db.Begin()
 	if err != nil {
 		logger.Log.Error("postgres: failed to begin transaction", zap.Error(err))
+		_ = tx.Rollback()
 		return nil, err
 	}
 
@@ -116,6 +117,7 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 		alias, genErr := p.rand.GenRandomString(url.OriginalURL)
 		if genErr != nil {
 			logger.Log.Error("postgres: generate random string failed", zap.Error(genErr))
+			_ = tx.Rollback()
 			return nil, ErrGenShortURL
 		}
 
@@ -123,6 +125,7 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 		_, err := tx.ExecContext(p.ctx, query, url.CID, alias, url.OriginalURL)
 		if err != nil {
 			logger.Log.Error("postgres: failed to insert url", zap.Error(err))
+			_ = tx.Rollback()
 			return nil, err
 		}
 

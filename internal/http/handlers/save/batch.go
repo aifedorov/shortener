@@ -1,7 +1,6 @@
 package save
 
 import (
-	"encoding/json"
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/aifedorov/shortener/pkg/logger"
@@ -15,26 +14,19 @@ func NewSaveJSONBatchHandler(config *config.Config, repo repository.Repository, 
 		rw.Header().Set("Content-Type", "application/json")
 
 		logger.Log.Debug("decoding request body")
-		var reqURLs []BatchRequest
-
-		if err := json.NewDecoder(req.Body).Decode(&reqURLs); err != nil {
+		reqURLs, err := decodeRequest(req)
+		if err != nil {
 			logger.Log.Error("failed to decode request", zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
 		logger.Log.Debug("validating requested urls", zap.Int("count", len(reqURLs)))
-		var urls = make([]repository.URLInput, len(reqURLs))
-		for i, reqBodyURL := range reqURLs {
-			if err := urlChecker.CheckURL(reqBodyURL.OriginalURL); err != nil {
-				logger.Log.Error("invalid url parameter in request", zap.String("request", reqBodyURL.String()))
-				http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-				return
-			}
-			urls[i] = repository.URLInput{
-				CID:         reqBodyURL.CID,
-				OriginalURL: reqBodyURL.OriginalURL,
-			}
+		urls, err := validateURLs(reqURLs, urlChecker)
+		if err != nil {
+			logger.Log.Error("invalid url parameter in request")
+			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
 		}
 
 		res, err := repo.StoreBatch(config.BaseURL, urls)
@@ -46,7 +38,9 @@ func NewSaveJSONBatchHandler(config *config.Config, repo repository.Repository, 
 
 		logger.Log.Debug("sending HTTP 201 response")
 		rw.WriteHeader(http.StatusCreated)
+		logger.Log.Debug("encoding response body", zap.Any("body", res))
 		if err := encodeBatchResponse(rw, res); err != nil {
+			logger.Log.Error("failed to encode batch response", zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

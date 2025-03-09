@@ -2,12 +2,19 @@ package save
 
 import (
 	"encoding/json"
-	"errors"
-	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/aifedorov/shortener/pkg/logger"
-	"go.uber.org/zap"
+	"github.com/aifedorov/shortener/pkg/validate"
 	"net/http"
+
+	"github.com/aifedorov/shortener/internal/repository"
 )
+
+func decodeRequest(req *http.Request) ([]BatchRequest, error) {
+	var reqURLs []BatchRequest
+	if err := json.NewDecoder(req.Body).Decode(&reqURLs); err != nil {
+		return nil, err
+	}
+	return reqURLs, nil
+}
 
 func encodeResponse(rw http.ResponseWriter, resURL string) error {
 	encoder := json.NewEncoder(rw)
@@ -15,10 +22,8 @@ func encodeResponse(rw http.ResponseWriter, resURL string) error {
 		ShortURL: resURL,
 	}
 
-	logger.Log.Debug("encoding response", zap.Any("response", resp))
 	if err := encoder.Encode(resp); err != nil {
-		logger.Log.Error("failed to encode response", zap.Error(err))
-		return errors.New("failed to encode response")
+		return err
 	}
 	return nil
 }
@@ -34,10 +39,22 @@ func encodeBatchResponse(rw http.ResponseWriter, urls []repository.URLOutput) er
 		resp[url] = r
 	}
 
-	logger.Log.Debug("encoding response", zap.Any("response", resp))
 	if err := encoder.Encode(resp); err != nil {
-		logger.Log.Error("failed to encode batch response", zap.Error(err))
-		return errors.New("failed to encode batch response")
+		return err
 	}
 	return nil
+}
+
+func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]repository.URLInput, error) {
+	var urls = make([]repository.URLInput, len(reqURLs))
+	for i, reqBodyURL := range reqURLs {
+		if err := urlChecker.CheckURL(reqBodyURL.OriginalURL); err != nil {
+			return nil, err
+		}
+		urls[i] = repository.URLInput{
+			CID:         reqBodyURL.CID,
+			OriginalURL: reqBodyURL.OriginalURL,
+		}
+	}
+	return urls, nil
 }
