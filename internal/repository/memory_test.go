@@ -1,6 +1,7 @@
-package storage
+package repository
 
 import (
+	"github.com/aifedorov/shortener/pkg/random"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,29 +10,31 @@ import (
 func TestMemoryStorage_GetURL(t *testing.T) {
 	tests := []struct {
 		name     string
-		storage  *MemoryStorage
+		storage  *MemoryRepository
 		shortURL string
 		want     string
 		wantErr  error
 	}{
 		{
 			name: "get URL with existing value",
-			storage: func() *MemoryStorage {
-				ms := NewMemoryStorage()
-				ms.PathToURL.Store("1", "https://google.com")
-				return ms
-			}(),
+			storage: &MemoryRepository{
+				Rand: random.NewService(),
+				PathToURL: map[string]string{
+					"1": "https://google.com",
+				},
+			},
 			shortURL: "1",
 			want:     "https://google.com",
 			wantErr:  nil,
 		},
 		{
 			name: "get URL with not existing value",
-			storage: func() *MemoryStorage {
-				ms := NewMemoryStorage()
-				ms.PathToURL.Store("1", "https://google.com")
-				return ms
-			}(),
+			storage: &MemoryRepository{
+				Rand: random.NewService(),
+				PathToURL: map[string]string{
+					"1": "https://google.com",
+				},
+			},
 			shortURL: "2",
 			want:     "",
 			wantErr:  ErrShortURLNotFound,
@@ -39,7 +42,7 @@ func TestMemoryStorage_GetURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.storage.GetURL(tt.shortURL)
+			got, err := tt.storage.Get(tt.shortURL)
 			assert.ErrorIs(t, err, tt.wantErr)
 			assert.Equal(t, tt.want, got)
 		})
@@ -49,7 +52,7 @@ func TestMemoryStorage_GetURL(t *testing.T) {
 func TestMemoryStorage_SaveURL(t *testing.T) {
 	tests := []struct {
 		name       string
-		storage    *MemoryStorage
+		storage    *MemoryRepository
 		baseURL    string
 		targetURL  string
 		wantPrefix string
@@ -58,7 +61,7 @@ func TestMemoryStorage_SaveURL(t *testing.T) {
 	}{
 		{
 			name:      "save new URL with empty targetURL",
-			storage:   NewMemoryStorage(),
+			storage:   NewMemoryRepository(),
 			baseURL:   "https://google.com",
 			targetURL: "",
 			want:      "",
@@ -66,7 +69,7 @@ func TestMemoryStorage_SaveURL(t *testing.T) {
 		},
 		{
 			name:       "save new URL with valid targetURL",
-			storage:    NewMemoryStorage(),
+			storage:    NewMemoryRepository(),
 			baseURL:    "https://localhost:80",
 			targetURL:  "https://google.com",
 			wantPrefix: "https://localhost:80/",
@@ -75,7 +78,7 @@ func TestMemoryStorage_SaveURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.storage.SaveURL(tt.baseURL, tt.targetURL)
+			got, err := tt.storage.Store(tt.baseURL, tt.targetURL)
 			assert.ErrorIs(t, err, tt.wantErr)
 
 			if tt.wantPrefix != "" {
