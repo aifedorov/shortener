@@ -137,7 +137,6 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 		logger.Log.Debug("postgres: url stored", zap.String("cid", ou.CID), zap.String("url", ou.ShortURL))
 	}
 
-	logger.Log.Debug("postgres: urls stored", zap.Int("count", len(res)))
 	logger.Log.Debug("postgres: commiting transaction for storing batch of urls")
 	return res, tx.Commit()
 }

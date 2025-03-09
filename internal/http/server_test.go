@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/aifedorov/shortener/pkg/random"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -46,11 +47,11 @@ func TestServer_redirect(t *testing.T) {
 			name: "Get method with existing id",
 			server: NewServer(
 				config.NewConfig(),
-				func() *repository.MemoryRepository {
-					ms := repository.NewMemoryRepository()
-					ms.PathToURL.Store("1", "https://google.com")
-					return ms
-				}(),
+				&repository.MemoryRepository{
+					PathToURL: map[string]string{
+						"1": "https://google.com",
+					},
+				},
 			),
 			method: http.MethodGet,
 			path:   `/1`,
@@ -64,11 +65,11 @@ func TestServer_redirect(t *testing.T) {
 			name: "Get method with not existing id",
 			server: NewServer(
 				config.NewConfig(),
-				func() *repository.MemoryRepository {
-					ms := repository.NewMemoryRepository()
-					ms.PathToURL.Store("1", "https://google.com")
-					return ms
-				}(),
+				&repository.MemoryRepository{
+					PathToURL: map[string]string{
+						"1": "https://google.com",
+					},
+				},
 			),
 			method: http.MethodGet,
 			path:   `/2`,
@@ -152,18 +153,19 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 			name: "Post method with existed url",
 			server: NewServer(
 				config.NewConfig(),
-				func() *repository.MemoryRepository {
-					ms := repository.NewMemoryRepository()
-					ms.PathToURL.Store("BQRvJsg-jIg", "https://google.com")
-					return ms
-				}(),
+				&repository.MemoryRepository{
+					Rand: random.NewService(),
+					PathToURL: map[string]string{
+						"1": "https://google.com",
+					},
+				},
 			),
 			method:      http.MethodPost,
 			contentType: "text/plain",
 			requestBody: `https://google.com`,
 			want: want{
 				contentType: "text/plain",
-				code:        http.StatusOK,
+				code:        http.StatusCreated,
 			},
 		},
 	}
@@ -248,18 +250,19 @@ func TestServer_saveURL_JSON(t *testing.T) {
 			name: "Post method with existed URL",
 			server: NewServer(
 				config.NewConfig(),
-				func() *repository.MemoryRepository {
-					ms := repository.NewMemoryRepository()
-					ms.PathToURL.Store("BQRvJsg-jIg", "https://google.com")
-					return ms
-				}(),
+				&repository.MemoryRepository{
+					Rand: random.NewService(),
+					PathToURL: map[string]string{
+						"1": "https://google.com",
+					},
+				},
 			),
 			method:      http.MethodPost,
 			contentType: "application/json",
 			requestBody: `{"url": "https://google.com"}`,
 			want: want{
 				contentType: "application/json",
-				code:        http.StatusOK,
+				code:        http.StatusCreated,
 			},
 		},
 	}

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/aifedorov/shortener/pkg/random"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,22 +17,24 @@ func TestMemoryStorage_GetURL(t *testing.T) {
 	}{
 		{
 			name: "get URL with existing value",
-			storage: func() *MemoryRepository {
-				ms := NewMemoryRepository()
-				ms.PathToURL.Store("1", "https://google.com")
-				return ms
-			}(),
+			storage: &MemoryRepository{
+				Rand: random.NewService(),
+				PathToURL: map[string]string{
+					"1": "https://google.com",
+				},
+			},
 			shortURL: "1",
 			want:     "https://google.com",
 			wantErr:  nil,
 		},
 		{
 			name: "get URL with not existing value",
-			storage: func() *MemoryRepository {
-				ms := NewMemoryRepository()
-				ms.PathToURL.Store("1", "https://google.com")
-				return ms
-			}(),
+			storage: &MemoryRepository{
+				Rand: random.NewService(),
+				PathToURL: map[string]string{
+					"1": "https://google.com",
+				},
+			},
 			shortURL: "2",
 			want:     "",
 			wantErr:  ErrShortURLNotFound,
