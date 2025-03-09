@@ -19,7 +19,7 @@ func TestFileStorage_addNewURLMapping(t *testing.T) {
 	shortURL := "qwerty123"
 	originalURL := "https://google.com"
 
-	err := storage.addNewURLMapping(shortURL, originalURL)
+	err := storage.addNewURL(shortURL, originalURL)
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(tempFile)
@@ -149,7 +149,7 @@ func TestFileStorage_AddNewURLMapping(t *testing.T) {
 	shortURL := "test-short"
 	originalURL := "https://example.com"
 
-	err := storage.addNewURLMapping(shortURL, originalURL)
+	err := storage.addNewURL(shortURL, originalURL)
 	require.NoError(t, err)
 
 	_, err = os.Stat(tempFile)

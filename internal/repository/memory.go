@@ -10,7 +10,7 @@ import (
 type MemoryRepository struct {
 	PathToURL map[string]string
 	Rand      random.Randomizer
-	mu        sync.RWMutex
+	mu        sync.Mutex
 }
 
 func NewMemoryRepository() *MemoryRepository {
@@ -33,8 +33,8 @@ func (ms *MemoryRepository) Close() error {
 }
 
 func (ms *MemoryRepository) Get(shortURL string) (string, error) {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
 
 	targetURL, exists := ms.PathToURL[shortURL]
 	if !exists {
