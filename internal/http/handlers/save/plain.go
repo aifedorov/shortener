@@ -23,15 +23,16 @@ func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, 
 			return
 		}
 
-		logger.Log.Debug("checking input url", zap.String("url", string(body)))
-		url := string(body)
-		if err := urlChecker.CheckURL(url); err != nil {
-			logger.Log.Error("invalid url", zap.String("url", url))
+		logger.Log.Debug("checking input oURL", zap.String("oURL", string(body)))
+		oURL := string(body)
+		if err := urlChecker.CheckURL(oURL); err != nil {
+			logger.Log.Error("invalid oURL", zap.String("oURL", oURL))
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
-		resURL, saveErr := repo.Store(config.BaseURL, url)
+		logger.Log.Debug("saving oURL", zap.String("oURL", oURL))
+		resURL, saveErr := repo.Store(config.BaseURL, oURL)
 		if errors.Is(saveErr, repository.ErrURLExists) {
 			logger.Log.Debug("sending HTTP 200 response")
 			rw.WriteHeader(http.StatusOK)
@@ -42,6 +43,12 @@ func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, 
 				return
 			}
 		}
+		if saveErr != nil {
+			logger.Log.Error("failed to save oURL", zap.String("oURL", oURL))
+			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+		logger.Log.Debug("store updated", zap.String("short_url", resURL), zap.String("original_url", oURL))
 
 		logger.Log.Debug("sending HTTP 201 response")
 		rw.WriteHeader(http.StatusCreated)

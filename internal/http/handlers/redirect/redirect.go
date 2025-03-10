@@ -15,7 +15,7 @@ func NewRedirectHandler(repo repository.Repository) http.HandlerFunc {
 		shortURL := chi.URLParam(req, "shortURL")
 		target, err := repo.Get(shortURL)
 		if err != nil {
-			logger.Log.Error("shortener shortener not found", zap.String("shortURL", shortURL))
+			logger.Log.Info("short_url not found", zap.String("short_url", shortURL))
 			http.NotFound(res, req)
 			return
 		}

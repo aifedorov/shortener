@@ -38,7 +38,7 @@ func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 
 	targetURL, exists := ms.PathToURL[shortURL]
 	if !exists {
-		logger.Log.Debug("short url not found", zap.String("shortURL", shortURL))
+		logger.Log.Debug("memory: short url not found", zap.String("short_url", shortURL))
 		return "", ErrShortURLNotFound
 	}
 
@@ -51,18 +51,18 @@ func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
 
 	alias, genErr := ms.Rand.GenRandomString(targetURL)
 	if genErr != nil {
-		logger.Log.Debug("generation of random string failed", zap.Error(genErr))
+		logger.Log.Debug("memory: generation of random string failed", zap.Error(genErr))
 		return "", ErrGenShortURL
 	}
 
 	resURL := baseURL + "/" + alias
 
 	if _, exists := ms.PathToURL[resURL]; exists {
-		logger.Log.Debug("short url already exists", zap.String("resURL", resURL))
+		logger.Log.Debug("memory: short url already exists", zap.String("resURL", resURL))
 		return resURL, nil
 	}
 
-	ms.PathToURL[resURL] = targetURL
+	ms.PathToURL[alias] = targetURL
 	return resURL, nil
 }
 
