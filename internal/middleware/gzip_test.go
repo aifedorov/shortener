@@ -3,6 +3,7 @@ package middleware
 import (
 	"bytes"
 	"compress/gzip"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,7 @@ import (
 
 func TestGzipCompression(t *testing.T) {
 	handler := GzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World"))
+		_, _ = w.Write([]byte("Hello World"))
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -39,7 +40,9 @@ func TestGzipCompression(t *testing.T) {
 		resp, err := http.DefaultClient.Do(r)
 		require.NoError(t, err)
 
-		defer resp.Body.Close()
+		defer func() {
+			assert.NoError(t, resp.Body.Close())
+		}()
 
 		b, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
@@ -55,7 +58,9 @@ func TestGzipCompression(t *testing.T) {
 		resp, err := http.DefaultClient.Do(r)
 		require.NoError(t, err)
 
-		defer resp.Body.Close()
+		defer func() {
+			assert.NoError(t, resp.Body.Close())
+		}()
 
 		zr, err := gzip.NewReader(resp.Body)
 		require.NoError(t, err)

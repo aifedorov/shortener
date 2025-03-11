@@ -7,10 +7,25 @@ import (
 	"github.com/aifedorov/shortener/pkg/logger"
 )
 
+type ConflictError struct {
+	ShortURL string
+	err      error
+}
+
+func NewConflictError(shortURL string, err error) error {
+	return &ConflictError{
+		ShortURL: shortURL,
+		err:      err,
+	}
+}
+
+func (e *ConflictError) Error() string {
+	return e.err.Error()
+}
+
 var (
-	ErrShortURLNotFound = errors.New("repository: short url not found")
-	ErrURLExists        = errors.New("repository: url exists")
-	ErrGenShortURL      = errors.New("repository: generation short url is failed")
+	ErrShortURLNotFound = errors.New("short url not found")
+	ErrURLExists        = errors.New("url exists")
 )
 
 type Repository interface {

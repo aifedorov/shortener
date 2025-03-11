@@ -29,17 +29,23 @@ func NewSaveJSONHandler(config *config.Config, repo repository.Repository, urlCh
 			return
 		}
 
-		resURL, saveErr := repo.Store(config.BaseURL, reqBody.URL)
-		if errors.Is(saveErr, repository.ErrURLExists) {
-			logger.Log.Debug("sending HTTP 200 response")
-			rw.WriteHeader(http.StatusOK)
+		resURL, err := repo.Store(config.BaseURL, reqBody.URL)
+		var cErr *repository.ConflictError
+		if errors.As(err, &cErr) {
+			logger.Log.Debug("sending HTTP 409 response")
+			rw.WriteHeader(http.StatusConflict)
 
-			logger.Log.Debug("encoding response", zap.Any("response", rw))
-			if err := encodeResponse(rw, resURL); err != nil {
+			logger.Log.Debug("encoding response")
+			if err := encodeResponse(rw, cErr.ShortURL); err != nil {
 				logger.Log.Error("failed to encode response", zap.Error(err))
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
+			return
+		}
+		if err != nil {
+			logger.Log.Error("failed to save original url", zap.String("original_url", resURL), zap.Error(err))
+			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 

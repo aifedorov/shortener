@@ -80,14 +80,14 @@ func (fs *FileRepository) Get(shortURL string) (string, error) {
 }
 
 func (fs *FileRepository) Store(baseURL, targetURL string) (string, error) {
-	alias, genErr := fs.rand.GenRandomString(targetURL)
-	if genErr != nil {
-		logger.Log.Error("fileStorage: generate random string failed", zap.Error(genErr))
-		return "", ErrGenShortURL
+	alias, err := fs.rand.GenRandomString(targetURL)
+	if err != nil {
+		logger.Log.Error("fileStorage: generate random string failed", zap.Error(err))
+		return "", err
 	}
 
 	shortURL := baseURL + "/" + alias
-	err := fs.addNewURL(alias, targetURL)
+	err = fs.addNewURL(alias, targetURL)
 	if err != nil {
 		logger.Log.Error("fileStorage: failed to add new url", zap.Error(err))
 		return "", err
@@ -177,7 +177,7 @@ func (fs *FileRepository) addNewURLs(baseURL string, urls []URLInput) ([]URLOutp
 		alias, genErr := fs.rand.GenRandomString(url.OriginalURL)
 		if genErr != nil {
 			logger.Log.Debug("fileStorage: generation of random string failed", zap.Error(genErr))
-			return nil, ErrGenShortURL
+			return nil, err
 		}
 
 		record := URLMapping{

@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io"
 	"net/http"
 	"time"
 
@@ -37,6 +38,7 @@ var Log = zap.NewNop()
 func Initialize(level string) error {
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
+		Log.Error("logger: failed to parse level", zap.Error(err))
 		return err
 	}
 
@@ -45,6 +47,7 @@ func Initialize(level string) error {
 
 	zl, err := cfg.Build()
 	if err != nil {
+		Log.Error("logger: failed to build", zap.Error(err))
 		return err
 	}
 
@@ -58,9 +61,16 @@ func RequestLogger(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		duration := time.Since(start)
 
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			Log.Warn("logger: failed to read request body", zap.Error(err))
+			return
+		}
+
 		Log.Info("HTTP request ==>",
 			zap.String("method", r.Method),
 			zap.String("URL", r.URL.String()),
+			zap.ByteString("body", body),
 			zap.Duration("duration", duration),
 		)
 	})
@@ -81,7 +91,7 @@ func ResponseLogger(next http.Handler) http.Handler {
 		Log.Info("HTTP response <==",
 			zap.Int("status", rd.status),
 			zap.Int("size", rd.size),
-			zap.String("body", string(rd.body)),
+			zap.ByteString("body", rd.body),
 			zap.Duration("duration", duration),
 		)
 	})

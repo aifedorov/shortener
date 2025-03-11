@@ -16,35 +16,37 @@ func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, 
 		rw.Header().Set("Content-Type", "text/plain")
 
 		logger.Log.Debug("reading request body")
-		body, readErr := io.ReadAll(req.Body)
-		if readErr != nil {
-			logger.Log.Error("failed to read request body", zap.Error(readErr))
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			logger.Log.Error("failed to read request body", zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
-		logger.Log.Debug("checking input oURL", zap.String("oURL", string(body)))
+		logger.Log.Debug("checking original url", zap.String("original_url", string(body)))
 		oURL := string(body)
 		if err := urlChecker.CheckURL(oURL); err != nil {
-			logger.Log.Error("invalid oURL", zap.String("oURL", oURL))
+			logger.Log.Error("invalid original url", zap.String("original_url", oURL))
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
-		logger.Log.Debug("saving oURL", zap.String("oURL", oURL))
-		resURL, saveErr := repo.Store(config.BaseURL, oURL)
-		if errors.Is(saveErr, repository.ErrURLExists) {
-			logger.Log.Debug("sending HTTP 200 response")
-			rw.WriteHeader(http.StatusOK)
-			_, writeErr := rw.Write([]byte(resURL))
-			if writeErr != nil {
-				logger.Log.Error("Failed to write response", zap.Error(writeErr))
+		logger.Log.Debug("saving original url", zap.String("original_url", oURL))
+		resURL, err := repo.Store(config.BaseURL, oURL)
+		var cErr *repository.ConflictError
+		if errors.As(err, &cErr) {
+			logger.Log.Debug("sending HTTP 409 response")
+			rw.WriteHeader(http.StatusConflict)
+			_, err := rw.Write([]byte(cErr.ShortURL))
+			if err != nil {
+				logger.Log.Error("failed to write response", zap.Error(err))
 				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
+			return
 		}
-		if saveErr != nil {
-			logger.Log.Error("failed to save oURL", zap.String("oURL", oURL))
+		if err != nil {
+			logger.Log.Error("failed to save original url", zap.String("original_url", oURL), zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

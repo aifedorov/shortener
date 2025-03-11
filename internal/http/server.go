@@ -3,13 +3,14 @@ package server
 import (
 	"context"
 	"errors"
+	"log"
+	"net/http"
+
 	"github.com/aifedorov/shortener/internal/http/handlers/ping"
 	"github.com/aifedorov/shortener/pkg/logger"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
-	"log"
-	"net/http"
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/http/handlers/redirect"
@@ -55,7 +56,7 @@ func (s *Server) Run() {
 
 	err := s.repo.Run()
 	if err != nil {
-		logger.Log.Fatal("server: repository failed to run", zap.Error(err))
+		logger.Log.Fatal("server: failed to run repository", zap.Error(err))
 	}
 	defer func() {
 		err := s.repo.Close()
@@ -71,10 +72,10 @@ func (s *Server) Run() {
 
 	s.mountHandlers()
 
-	logger.Log.Info("Running server on", zap.String("address", s.config.RunAddr))
+	logger.Log.Info("server: running on", zap.String("address", s.config.RunAddr))
 	lsErr := http.ListenAndServe(s.config.RunAddr, s.router)
 	if lsErr != nil {
-		logger.Log.Fatal("Failed to start server", zap.Error(lsErr))
+		logger.Log.Fatal("server: failed to run", zap.Error(lsErr))
 	}
 }
 
@@ -84,7 +85,7 @@ func (s *Server) mountHandlers() {
 	s.router.Post("/api/shorten/batch", save.NewSaveJSONBatchHandler(s.config, s.repo, s.urlChecker))
 	s.router.Get("/{shortURL}", redirect.NewRedirectHandler(s.repo))
 	s.router.Get("/", func(res http.ResponseWriter, r *http.Request) {
-		logger.Log.Debug("got request with bad data", zap.String("method", r.Method))
+		logger.Log.Debug("server: got request with bad data", zap.String("method", r.Method))
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
 	})
 	s.router.Get("/ping", ping.NewPingHandler(s.repo))

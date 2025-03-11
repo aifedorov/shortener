@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/aifedorov/shortener/pkg/logger"
@@ -37,8 +38,8 @@ func (p *PostgresRepository) Run() error {
 	p.db = db
 
 	logger.Log.Debug("postgres: creating table")
-	ctErr := createTable(p.ctx, db)
-	if ctErr != nil {
+	err = p.createTable()
+	if err != nil {
 		logger.Log.Error("postgres: failed to create table", zap.Error(err))
 		return err
 	}
@@ -79,23 +80,38 @@ func (p *PostgresRepository) Get(shortURL string) (string, error) {
 }
 
 func (p *PostgresRepository) Store(baseURL, targetURL string) (string, error) {
-	logger.Log.Debug("postgres: generating short url", zap.String("url", targetURL))
-	alias, genErr := p.rand.GenRandomString(targetURL)
-	if genErr != nil {
-		logger.Log.Error("postgres: generate random string failed", zap.Error(genErr))
-		return "", ErrGenShortURL
-	}
-
-	logger.Log.Debug("postgres: inserting url", zap.String("alias", alias), zap.String("url", targetURL))
-	query := "INSERT INTO urls(cid, alias, original_url) VALUES ($1, $2, $3);"
-	_, err := p.db.ExecContext(p.ctx, query, uuid.NewString(), alias, targetURL)
+	logger.Log.Debug("postgres: generating short url", zap.String("original_url", targetURL))
+	newAlias, err := p.rand.GenRandomString(targetURL)
 	if err != nil {
-		logger.Log.Error("postgres: failed to insert url", zap.Error(err))
+		logger.Log.Error("postgres: generate random string failed", zap.Error(err))
 		return "", err
 	}
 
-	shortURL := baseURL + "/" + alias
-	return shortURL, nil
+	logger.Log.Debug("postgres: inserting url", zap.String("alias", newAlias), zap.String("original_url", targetURL))
+	var alias string
+	query := `INSERT INTO urls(cid, alias, original_url)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (original_url) 
+          	DO NOTHING 
+          	RETURNING alias;`
+	row := p.db.QueryRowContext(p.ctx, query, uuid.NewString(), newAlias, targetURL)
+	err = row.Scan(&alias)
+	if errors.Is(err, sql.ErrNoRows) {
+		logger.Log.Debug("postgres: fetching conflicted url", zap.String("conflict_url", targetURL), zap.Error(err))
+		row := p.db.QueryRowContext(p.ctx, "SELECT alias FROM urls WHERE original_url = $1", targetURL)
+		err := row.Scan(&alias)
+		if err != nil {
+			logger.Log.Error("postgres: failed to fetch existed url", zap.String("original_url", targetURL), zap.Error(err))
+			return "", err
+		}
+		return "", NewConflictError(baseURL+"/"+alias, ErrURLExists)
+	}
+	if err != nil {
+		logger.Log.Error("postgres: failed to insert new url", zap.String("alias", newAlias), zap.String("original_url", targetURL), zap.Error(err))
+		return "", err
+	}
+
+	return baseURL + "/" + alias, nil
 }
 
 func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error) {
@@ -107,25 +123,37 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 	tx, err := p.db.Begin()
 	if err != nil {
 		logger.Log.Error("postgres: failed to begin transaction", zap.Error(err))
-		_ = tx.Rollback()
+		err := tx.Rollback()
+		if err != nil {
+			logger.Log.Error("postgres: failed to rollback transaction", zap.Error(err))
+			return nil, err
+		}
 		return nil, err
 	}
 
 	logger.Log.Debug("postgres: storing batch of urls", zap.Int("count", len(urls)))
 	res := make([]URLOutput, len(urls))
 	for i, url := range urls {
-		alias, genErr := p.rand.GenRandomString(url.OriginalURL)
-		if genErr != nil {
-			logger.Log.Error("postgres: generate random string failed", zap.Error(genErr))
-			_ = tx.Rollback()
-			return nil, ErrGenShortURL
+		alias, err := p.rand.GenRandomString(url.OriginalURL)
+		if err != nil {
+			logger.Log.Error("postgres: generate random string failed", zap.Error(err))
+			err := tx.Rollback()
+			if err != nil {
+				logger.Log.Error("postgres: failed to rollback transaction", zap.Error(err))
+				return nil, err
+			}
+			return nil, err
 		}
 
 		query := "INSERT INTO urls(cid, alias, original_url) VALUES ($1, $2, $3);"
-		_, err := tx.ExecContext(p.ctx, query, url.CID, alias, url.OriginalURL)
+		_, err = tx.ExecContext(p.ctx, query, url.CID, alias, url.OriginalURL)
 		if err != nil {
 			logger.Log.Error("postgres: failed to insert url", zap.Error(err))
-			_ = tx.Rollback()
+			err := tx.Rollback()
+			if err != nil {
+				logger.Log.Error("postgres: failed to rollback transaction", zap.Error(err))
+				return nil, err
+			}
 			return nil, err
 		}
 
@@ -141,20 +169,28 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 	return res, tx.Commit()
 }
 
-func createTable(ctx context.Context, db *sql.DB) error {
+func (p *PostgresRepository) createTable() error {
+	tx, err := p.db.BeginTx(p.ctx, nil)
+	if err != nil {
+		logger.Log.Error("postgres: failed to create table", zap.Error(err))
+		return err
+	}
+
 	query := `CREATE TABLE IF NOT EXISTS urls (
     		id SERIAL PRIMARY KEY,
     		cid CHAR(36) NOT NULL,
-			alias TEXT NOT NULL,
-		 	original_url TEXT NOT NULL,
+			alias TEXT NOT NULL UNIQUE,
+		 	original_url TEXT NOT NULL UNIQUE,
 		 	created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
 		`
-	ctx, cancel := context.WithTimeout(ctx, defaultDBTimeout)
+	ctx, cancel := context.WithTimeout(p.ctx, defaultDBTimeout)
 	defer cancel()
-	_, err := db.ExecContext(ctx, query)
+
+	_, err = tx.ExecContext(ctx, query)
 	if err != nil {
-		return err
+		logger.Log.Error("postgres: failed to create table", zap.Error(err))
+		return tx.Rollback()
 	}
-	return nil
+	return tx.Commit()
 }
