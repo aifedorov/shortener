@@ -98,8 +98,7 @@ func (p *PostgresRepository) Store(baseURL, targetURL string) (string, error) {
 	err = row.Scan(&alias)
 	if errors.Is(err, sql.ErrNoRows) {
 		logger.Log.Debug("postgres: fetching conflicted url", zap.String("conflict_url", targetURL), zap.Error(err))
-		row := p.db.QueryRowContext(p.ctx, "SELECT alias FROM urls WHERE original_url = $1", targetURL)
-		err := row.Scan(&alias)
+		alias, err = p.fetchAlias(targetURL)
 		if err != nil {
 			logger.Log.Error("postgres: failed to fetch existed url", zap.String("original_url", targetURL), zap.Error(err))
 			return "", err
@@ -134,32 +133,15 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 	logger.Log.Debug("postgres: storing batch of urls", zap.Int("count", len(urls)))
 	res := make([]URLOutput, len(urls))
 	for i, url := range urls {
-		alias, err := p.rand.GenRandomString()
+		shortURL, err := p.Store(baseURL, url.OriginalURL)
 		if err != nil {
-			logger.Log.Error("postgres: generate random string failed", zap.Error(err))
-			err := tx.Rollback()
-			if err != nil {
-				logger.Log.Error("postgres: failed to rollback transaction", zap.Error(err))
-				return nil, err
-			}
-			return nil, err
-		}
-
-		query := "INSERT INTO urls(cid, alias, original_url) VALUES ($1, $2, $3);"
-		_, err = tx.ExecContext(p.ctx, query, url.CID, alias, url.OriginalURL)
-		if err != nil {
-			logger.Log.Error("postgres: failed to insert url", zap.Error(err))
-			err := tx.Rollback()
-			if err != nil {
-				logger.Log.Error("postgres: failed to rollback transaction", zap.Error(err))
-				return nil, err
-			}
+			logger.Log.Error("postgres: failed to store url", zap.String("url", url.OriginalURL), zap.Error(err))
 			return nil, err
 		}
 
 		ou := URLOutput{
 			CID:      url.CID,
-			ShortURL: baseURL + "/" + alias,
+			ShortURL: shortURL,
 		}
 		res[i] = ou
 		logger.Log.Debug("postgres: url stored", zap.String("cid", ou.CID), zap.String("url", ou.ShortURL))
@@ -193,4 +175,14 @@ func (p *PostgresRepository) createTable() error {
 		return tx.Rollback()
 	}
 	return tx.Commit()
+}
+
+func (p *PostgresRepository) fetchAlias(originalURL string) (string, error) {
+	var alias string
+	row := p.db.QueryRowContext(p.ctx, "SELECT alias FROM urls WHERE original_url = $1", originalURL)
+	err := row.Scan(&alias)
+	if err != nil {
+		return "", err
+	}
+	return alias, nil
 }

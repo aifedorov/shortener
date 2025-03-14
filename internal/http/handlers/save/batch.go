@@ -1,6 +1,7 @@
 package save
 
 import (
+	"errors"
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/aifedorov/shortener/pkg/logger"
@@ -30,6 +31,19 @@ func NewSaveJSONBatchHandler(config *config.Config, repo repository.Repository, 
 		}
 
 		res, err := repo.StoreBatch(config.BaseURL, urls)
+		var cErr *repository.ConflictError
+		if errors.As(err, &cErr) {
+			logger.Log.Debug("sending HTTP 409 response")
+			rw.WriteHeader(http.StatusConflict)
+
+			logger.Log.Debug("encoding response")
+			if err := encodeResponse(rw, cErr.ShortURL); err != nil {
+				logger.Log.Error("failed to encode response", zap.Error(err))
+				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+			return
+		}
 		if err != nil {
 			logger.Log.Error("failed to store batch", zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
