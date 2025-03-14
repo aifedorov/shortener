@@ -26,6 +26,7 @@ type URLMapping struct {
 
 type FileRepository struct {
 	fname     string
+	file      *os.File
 	pathToURL []URLMapping
 	rand      random.Randomizer
 }
@@ -39,6 +40,12 @@ func NewFileRepository(filePath string) *FileRepository {
 }
 
 func (fs *FileRepository) Run() error {
+	file, err := os.OpenFile(fs.fname, FileOpenFlagsWrite, FilePermissionsWrite)
+	fs.file = file
+	if err != nil {
+		logger.Log.Error("fileStorage: failed to open file", zap.String("file", fs.fname), zap.Error(err))
+		return err
+	}
 	return nil
 }
 
@@ -47,6 +54,10 @@ func (fs *FileRepository) Ping() error {
 }
 
 func (fs *FileRepository) Close() error {
+	err := fs.file.Close()
+	if err != nil {
+		logger.Log.Error("fileStorage: failed to close file", zap.String("file", fs.fname), zap.Error(err))
+	}
 	return nil
 }
 
@@ -80,7 +91,7 @@ func (fs *FileRepository) Get(shortURL string) (string, error) {
 }
 
 func (fs *FileRepository) Store(baseURL, targetURL string) (string, error) {
-	alias, err := fs.rand.GenRandomString(targetURL)
+	alias, err := fs.rand.GenRandomString()
 	if err != nil {
 		logger.Log.Error("fileStorage: generate random string failed", zap.Error(err))
 		return "", err
@@ -114,18 +125,6 @@ func (fs *FileRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOutp
 
 func (fs *FileRepository) addNewURL(shortURL string, originalURL string) error {
 	logger.Log.Debug("fileStorage: storing new url", zap.String("short_url", shortURL), zap.String("original_url", originalURL))
-	file, err := os.OpenFile(fs.fname, FileOpenFlagsWrite, FilePermissionsWrite)
-	if err != nil {
-		logger.Log.Error("fileStorage: failed to open file", zap.String("file", fs.fname), zap.Error(err))
-		return err
-	}
-	defer func() {
-		err := file.Close()
-		if err != nil {
-			logger.Log.Error("fileStorage: failed to close file", zap.String("file", fs.fname), zap.Error(err))
-		}
-	}()
-
 	record := URLMapping{
 		ID:          uuid.New().String(),
 		ShortURL:    shortURL,
@@ -138,7 +137,7 @@ func (fs *FileRepository) addNewURL(shortURL string, originalURL string) error {
 		return err
 	}
 
-	writer := bufio.NewWriter(file)
+	writer := bufio.NewWriter(fs.file)
 
 	if _, err := writer.Write(data); err != nil {
 		logger.Log.Error("fileStorage: failed to write data to buffer", zap.String("file", fs.fname), zap.Error(err))
@@ -159,24 +158,12 @@ func (fs *FileRepository) addNewURL(shortURL string, originalURL string) error {
 }
 
 func (fs *FileRepository) addNewURLs(baseURL string, urls []URLInput) ([]URLOutput, error) {
-	file, err := os.OpenFile(fs.fname, FileOpenFlagsWrite, FilePermissionsWrite)
-	if err != nil {
-		logger.Log.Error("fileStorage: failed to open file", zap.String("file", fs.fname), zap.Error(err))
-		return nil, err
-	}
-	defer func() {
-		err := file.Close()
-		if err != nil {
-			logger.Log.Error("fileStorage: failed to close file", zap.String("file", fs.fname), zap.Error(err))
-		}
-	}()
-
 	res := make([]URLOutput, len(urls))
-	writer := bufio.NewWriter(file)
+	writer := bufio.NewWriter(fs.file)
 	for i, url := range urls {
-		alias, genErr := fs.rand.GenRandomString(url.OriginalURL)
-		if genErr != nil {
-			logger.Log.Debug("fileStorage: generation of random string failed", zap.Error(genErr))
+		alias, err := fs.rand.GenRandomString()
+		if err != nil {
+			logger.Log.Debug("fileStorage: generation of random string failed", zap.Error(err))
 			return nil, err
 		}
 

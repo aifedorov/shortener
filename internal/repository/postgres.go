@@ -81,7 +81,7 @@ func (p *PostgresRepository) Get(shortURL string) (string, error) {
 
 func (p *PostgresRepository) Store(baseURL, targetURL string) (string, error) {
 	logger.Log.Debug("postgres: generating short url", zap.String("original_url", targetURL))
-	newAlias, err := p.rand.GenRandomString(targetURL)
+	newAlias, err := p.rand.GenRandomString()
 	if err != nil {
 		logger.Log.Error("postgres: generate random string failed", zap.Error(err))
 		return "", err
@@ -134,7 +134,7 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 	logger.Log.Debug("postgres: storing batch of urls", zap.Int("count", len(urls)))
 	res := make([]URLOutput, len(urls))
 	for i, url := range urls {
-		alias, err := p.rand.GenRandomString(url.OriginalURL)
+		alias, err := p.rand.GenRandomString()
 		if err != nil {
 			logger.Log.Error("postgres: generate random string failed", zap.Error(err))
 			err := tx.Rollback()

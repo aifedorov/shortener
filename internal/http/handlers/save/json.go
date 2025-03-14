@@ -3,12 +3,14 @@ package save
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+
+	"go.uber.org/zap"
+
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/aifedorov/shortener/pkg/logger"
 	"github.com/aifedorov/shortener/pkg/validate"
-	"go.uber.org/zap"
-	"net/http"
 )
 
 func NewSaveJSONHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {

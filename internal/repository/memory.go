@@ -49,14 +49,13 @@ func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
-	alias, err := ms.Rand.GenRandomString(targetURL)
+	alias, err := ms.Rand.GenRandomString()
 	if err != nil {
 		logger.Log.Debug("memory: generation of random string failed", zap.Error(err))
 		return "", err
 	}
 
 	resURL := baseURL + "/" + alias
-
 	if _, exists := ms.PathToURL[resURL]; exists {
 		logger.Log.Debug("memory: short url already exists", zap.String("resURL", resURL))
 		return resURL, nil
@@ -77,7 +76,7 @@ func (ms *MemoryRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOu
 	logger.Log.Debug("memory: storing batch of urls", zap.Int("count", len(urls)))
 	res := make([]URLOutput, len(urls))
 	for i, url := range urls {
-		alias, err := ms.Rand.GenRandomString(url.OriginalURL)
+		alias, err := ms.Rand.GenRandomString()
 		if err != nil {
 			logger.Log.Debug("memory: generation of random string failed", zap.Error(err))
 			return nil, err

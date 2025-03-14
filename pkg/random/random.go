@@ -1,7 +1,8 @@
 package random
 
 import (
-	"crypto/sha256"
+	"crypto/md5"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 )
@@ -9,7 +10,7 @@ import (
 const ShortURLDefaultSize = 8
 
 type Randomizer interface {
-	GenRandomString(str string) (string, error)
+	GenRandomString() (string, error)
 }
 
 type Service struct {
@@ -22,10 +23,14 @@ func NewService() *Service {
 	}
 }
 
-func (s *Service) GenRandomString(str string) (string, error) {
-	if s.ShortURLSize <= 0 || s.ShortURLSize > sha256.Size {
-		return "", fmt.Errorf("random: invalid size %d, must be > 0 and <= %d", s.ShortURLSize, sha256.Size)
+func (s *Service) GenRandomString() (string, error) {
+	if s.ShortURLSize <= 0 || s.ShortURLSize > md5.Size {
+		return "", fmt.Errorf("random: invalid size %d, must be > 0 and <= %d", s.ShortURLSize, md5.Size)
 	}
-	hash := sha256.Sum256([]byte(str))
+	b := make([]byte, s.ShortURLSize)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("failed to generate random string: %w", err)
+	}
+	hash := md5.Sum(b)
 	return base64.RawURLEncoding.EncodeToString(hash[:s.ShortURLSize]), nil
 }
