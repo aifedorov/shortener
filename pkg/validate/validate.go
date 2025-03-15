@@ -9,11 +9,6 @@ const (
 	urlPatternString = `(https?:\/\/)([\da-z\.-]+)\.([a-z]{2,6})(\/[\da-z\.-]+)*`
 )
 
-var (
-	ErrURLInvalid = errors.New("URL is not valid")
-	urlPattern    = regexp.MustCompile(urlPatternString)
-)
-
 type URLChecker interface {
 	CheckURL(url string) error
 }
@@ -30,7 +25,7 @@ func NewService() *Service {
 
 func (s *Service) CheckURL(url string) error {
 	if url != "" && !s.URLPattern.MatchString(url) {
-		return ErrURLInvalid
+		return errors.New("url is not valid")
 	}
 	return nil
 }
