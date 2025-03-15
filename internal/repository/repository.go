@@ -26,6 +26,7 @@ func (e *ConflictError) Error() string {
 var (
 	ErrShortURLNotFound = errors.New("short url not found")
 	ErrURLExists        = errors.New("url exists")
+	ErrUserHasNoData    = errors.New("user has no data")
 )
 
 type Repository interface {
@@ -33,24 +34,8 @@ type Repository interface {
 	Ping() error
 	Close() error
 	Get(shortURL string) (string, error)
-	GetAll(baseURL string) ([]URLOutput, error)
 	Store(baseURL, targetURL string) (string, error)
 	StoreBatch(baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error)
-}
-
-type BatchURLInput struct {
-	CID         string
-	OriginalURL string
-}
-
-type BatchURLOutput struct {
-	CID      string
-	ShortURL string
-}
-
-type URLOutput struct {
-	ShortURL    string
-	OriginalURL string
 }
 
 func NewRepository(ctx context.Context, cfg *config.Config) Repository {

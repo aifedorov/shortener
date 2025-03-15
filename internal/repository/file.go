@@ -3,9 +3,9 @@ package repository
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"os"
 
+	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"github.com/aifedorov/shortener/pkg/random"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -88,11 +88,6 @@ func (fs *FileRepository) Get(shortURL string) (string, error) {
 
 	logger.Log.Debug("fileStorage: url is not found", zap.String("short_url", shortURL))
 	return "", ErrShortURLNotFound
-}
-
-func (fs *FileRepository) GetAll(baseURL string) ([]URLOutput, error) {
-	// TODO: Implement me.
-	return nil, nil
 }
 
 func (fs *FileRepository) Store(baseURL, targetURL string) (string, error) {

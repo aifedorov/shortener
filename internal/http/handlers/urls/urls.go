@@ -3,14 +3,15 @@ package urls
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
+	"math/rand"
 	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +24,7 @@ const (
 
 type Claims struct {
 	jwt.RegisteredClaims
-	UserID string
+	UserID int
 }
 
 type URLResponse struct {
@@ -33,6 +34,8 @@ type URLResponse struct {
 
 func NewURLsHandler(cfg *config.Config, repo repository.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
 		cookie, err := r.Cookie(tokenName)
 		if errors.Is(err, http.ErrNoCookie) {
 			logger.Log.Info("cookie not present", zap.String("name", tokenName))
@@ -46,35 +49,25 @@ func NewURLsHandler(cfg *config.Config, repo repository.Repository) http.Handler
 		}
 
 		userID := getUserID(cookie.Value)
-		if userID == "" {
+		if userID == -1 {
 			logger.Log.Info("user is not authorized")
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 
-		urls, err := repo.GetAll(cfg.BaseURL)
-		if err != nil {
-			logger.Log.Error("failed to get urls", zap.Error(err))
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
 		logger.Log.Debug("sending HTTP 200 response")
 		w.WriteHeader(http.StatusOK)
-		logger.Log.Debug("encoding response urls", zap.Any("urls", urls))
-
-		err = encodeResponse(w, urls)
+		_, err = fmt.Fprintf(w, "user_id: %d", userID)
 		if err != nil {
-			logger.Log.Error("failed to encode response", zap.Error(err))
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			logger.Log.Error("failed to write response", zap.String("name", tokenName), zap.Error(err))
 			return
 		}
 	}
 }
 
-func getUserID(tokenString string) string {
+func getUserID(tokenString string) int {
 	if tokenString == "" {
-		return ""
+		return -1
 	}
 
 	logger.Log.Debug("parsing token")
@@ -84,21 +77,21 @@ func getUserID(tokenString string) string {
 	})
 	if err != nil {
 		logger.Log.Error("error parsing token", zap.Error(err))
-		return ""
+		return -1
 	}
 
 	logger.Log.Debug("checking token")
 	if !token.Valid {
 		logger.Log.Error("invalid token")
-		return ""
+		return -1
 	}
-
 	return claims.UserID
 }
 
 func setNewCookies(w http.ResponseWriter) {
 	logger.Log.Debug("building JWT token")
-	userID := uuid.NewString()
+	// TODO: Store userID in DB.
+	userID := rand.Intn(1000)
 	token, err := buildJWTString(userID)
 	if err != nil {
 		logger.Log.Error("failed to build JWT token", zap.String("error", err.Error()))
@@ -120,7 +113,7 @@ func setNewCookies(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func buildJWTString(userID string) (string, error) {
+func buildJWTString(userID int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenExp)),

@@ -45,11 +45,6 @@ func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 	return targetURL, nil
 }
 
-func (ms *MemoryRepository) GetAll(baseURL string) ([]URLOutput, error) {
-	// TODO: Implement me.
-	return nil, nil
-}
-
 func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
