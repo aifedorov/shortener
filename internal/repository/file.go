@@ -3,7 +3,7 @@ package repository
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/aifedorov/shortener/pkg/logger"
+	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"os"
 
 	"github.com/aifedorov/shortener/pkg/random"

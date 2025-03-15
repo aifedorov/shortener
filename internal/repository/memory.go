@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/aifedorov/shortener/pkg/logger"
+	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"github.com/aifedorov/shortener/pkg/random"
 	"go.uber.org/zap"
 	"sync"

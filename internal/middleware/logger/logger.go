@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"io"
 	"net/http"
 	"time"
 
@@ -61,16 +60,9 @@ func RequestLogger(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		duration := time.Since(start)
 
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			Log.Warn("logger: failed to read request body", zap.Error(err))
-			return
-		}
-
 		Log.Info("HTTP request ==>",
 			zap.String("method", r.Method),
 			zap.String("URL", r.URL.String()),
-			zap.ByteString("body", body),
 			zap.Duration("duration", duration),
 		)
 	})

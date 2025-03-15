@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"time"
 
-	"github.com/aifedorov/shortener/pkg/logger"
 	"github.com/aifedorov/shortener/pkg/random"
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -183,6 +183,10 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []BatchURLInput) ([
 	res := make([]BatchURLOutput, len(urls))
 	for i, url := range urls {
 		shortURL, err := p.Store(baseURL, url.OriginalURL)
+		if errors.Is(err, ErrURLExists) {
+			logger.Log.Info("postgres: url already exists", zap.String("original_url", url.OriginalURL))
+			return nil, NewConflictError(baseURL+"/"+url.OriginalURL, ErrURLExists)
+		}
 		if err != nil {
 			logger.Log.Error("postgres: failed to store url", zap.String("url", url.OriginalURL), zap.Error(err))
 			return nil, err

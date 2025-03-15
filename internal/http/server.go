@@ -3,12 +3,10 @@ package server
 import (
 	"context"
 	"errors"
-	"github.com/aifedorov/shortener/internal/http/handlers/urls"
 	"log"
 	"net/http"
 
 	"github.com/aifedorov/shortener/internal/http/handlers/ping"
-	"github.com/aifedorov/shortener/pkg/logger"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
@@ -16,7 +14,9 @@ import (
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/http/handlers/redirect"
 	"github.com/aifedorov/shortener/internal/http/handlers/save"
+	"github.com/aifedorov/shortener/internal/http/handlers/urls"
 	"github.com/aifedorov/shortener/internal/middleware"
+	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/aifedorov/shortener/pkg/validate"
 )

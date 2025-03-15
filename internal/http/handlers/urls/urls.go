@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/aifedorov/shortener/internal/config"
+	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 	"net/http"
 	"time"
 
-	"github.com/aifedorov/shortener/pkg/logger"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -136,6 +136,7 @@ func buildJWTString(userID string) (string, error) {
 }
 
 func encodeResponse(rw http.ResponseWriter, urls []repository.URLOutput) error {
+	rw.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(rw)
 	resp := make([]URLResponse, len(urls))
 	for i, url := range urls {

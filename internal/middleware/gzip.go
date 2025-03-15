@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"errors"
+	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"io"
 	"net/http"
 	"slices"
@@ -9,7 +10,6 @@ import (
 	"go.uber.org/zap"
 
 	"compress/gzip"
-	"github.com/aifedorov/shortener/pkg/logger"
 )
 
 type compressWriter struct {
