@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"github.com/aifedorov/shortener/internal/http/handlers/urls"
 	"log"
 	"net/http"
 
@@ -89,4 +90,5 @@ func (s *Server) mountHandlers() {
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
 	})
 	s.router.Get("/ping", ping.NewPingHandler(s.repo))
+	s.router.Get("/api/user/urls", urls.NewURLsHandler())
 }
