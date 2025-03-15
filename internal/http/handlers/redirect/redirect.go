@@ -2,13 +2,13 @@ package redirect
 
 import (
 	"errors"
+	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/aifedorov/shortener/pkg/logger"
 )
 
 func NewRedirectHandler(repo repository.Repository) http.HandlerFunc {

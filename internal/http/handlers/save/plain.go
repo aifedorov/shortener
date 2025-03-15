@@ -2,13 +2,14 @@ package save
 
 import (
 	"errors"
-	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/aifedorov/shortener/pkg/logger"
-	"github.com/aifedorov/shortener/pkg/validate"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
+
+	"github.com/aifedorov/shortener/internal/config"
+	"github.com/aifedorov/shortener/internal/middleware/logger"
+	"github.com/aifedorov/shortener/internal/repository"
+	"github.com/aifedorov/shortener/pkg/validate"
+	"go.uber.org/zap"
 )
 
 func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
@@ -37,6 +38,7 @@ func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, 
 		if errors.As(err, &cErr) {
 			logger.Log.Debug("sending HTTP 409 response")
 			rw.WriteHeader(http.StatusConflict)
+
 			_, err := rw.Write([]byte(cErr.ShortURL))
 			if err != nil {
 				logger.Log.Error("failed to write response", zap.Error(err))

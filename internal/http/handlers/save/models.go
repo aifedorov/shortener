@@ -4,11 +4,11 @@ import (
 	"fmt"
 )
 
-type Request struct {
+type RequestBody struct {
 	URL string `json:"url"`
 }
 
-func (r Request) String() string {
+func (r RequestBody) String() string {
 	return fmt.Sprintf("{url: %s}", r.URL)
 }
 
