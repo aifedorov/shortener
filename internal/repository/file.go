@@ -90,7 +90,7 @@ func (fs *FileRepository) Get(shortURL string) (string, error) {
 	return "", ErrShortURLNotFound
 }
 
-func (ms *FileRepository) GetAll(baseURL string) ([]URLOutput, error) {
+func (fs *FileRepository) GetAll(baseURL string) ([]URLOutput, error) {
 	// TODO: Implement me.
 	return nil, nil
 }
