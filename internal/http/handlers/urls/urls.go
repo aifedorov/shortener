@@ -1,7 +1,10 @@
 package urls
 
 import (
+	"encoding/json"
 	"errors"
+	"github.com/aifedorov/shortener/internal/config"
+	"github.com/aifedorov/shortener/internal/repository"
 	"net/http"
 	"time"
 
@@ -23,7 +26,12 @@ type Claims struct {
 	UserID string
 }
 
-func NewURLsHandler() http.HandlerFunc {
+type URLResponse struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
+func NewURLsHandler(cfg *config.Config, repo repository.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie(tokenName)
 		if errors.Is(err, http.ErrNoCookie) {
@@ -44,10 +52,20 @@ func NewURLsHandler() http.HandlerFunc {
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		_, err = w.Write([]byte(userID))
+		urls, err := repo.GetAll(cfg.BaseURL)
 		if err != nil {
-			logger.Log.Error("failed to write response", zap.String("name", tokenName), zap.Error(err))
+			logger.Log.Error("failed to get urls", zap.Error(err))
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		logger.Log.Debug("sending HTTP 200 response")
+		w.WriteHeader(http.StatusOK)
+		logger.Log.Debug("encoding response urls", zap.Any("urls", urls))
+
+		err = encodeResponse(w, urls)
+		if err != nil {
+			logger.Log.Error("failed to encode response", zap.Error(err))
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -115,4 +133,21 @@ func buildJWTString(userID string) (string, error) {
 		return "", err
 	}
 	return tokenString, nil
+}
+
+func encodeResponse(rw http.ResponseWriter, urls []repository.URLOutput) error {
+	encoder := json.NewEncoder(rw)
+	resp := make([]URLResponse, len(urls))
+	for i, url := range urls {
+		r := URLResponse{
+			ShortURL:    url.ShortURL,
+			OriginalURL: url.OriginalURL,
+		}
+		resp[i] = r
+	}
+
+	if err := encoder.Encode(resp); err != nil {
+		return err
+	}
+	return nil
 }

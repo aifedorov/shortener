@@ -90,6 +90,11 @@ func (fs *FileRepository) Get(shortURL string) (string, error) {
 	return "", ErrShortURLNotFound
 }
 
+func (ms *FileRepository) GetAll(baseURL string) ([]URLOutput, error) {
+	// TODO: Implement me.
+	return nil, nil
+}
+
 func (fs *FileRepository) Store(baseURL, targetURL string) (string, error) {
 	alias, err := fs.rand.GenRandomString()
 	if err != nil {
@@ -108,7 +113,7 @@ func (fs *FileRepository) Store(baseURL, targetURL string) (string, error) {
 	return shortURL, nil
 }
 
-func (fs *FileRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error) {
+func (fs *FileRepository) StoreBatch(baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
@@ -157,8 +162,8 @@ func (fs *FileRepository) addNewURL(shortURL string, originalURL string) error {
 	return nil
 }
 
-func (fs *FileRepository) addNewURLs(baseURL string, urls []URLInput) ([]URLOutput, error) {
-	res := make([]URLOutput, len(urls))
+func (fs *FileRepository) addNewURLs(baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
+	res := make([]BatchURLOutput, len(urls))
 	writer := bufio.NewWriter(fs.file)
 	for i, url := range urls {
 		alias, err := fs.rand.GenRandomString()
@@ -191,7 +196,7 @@ func (fs *FileRepository) addNewURLs(baseURL string, urls []URLInput) ([]URLOutp
 		}
 
 		resURL := baseURL + "/" + alias
-		ou := URLOutput{
+		ou := BatchURLOutput{
 			CID:      url.CID,
 			ShortURL: resURL,
 		}

@@ -73,10 +73,59 @@ func (p *PostgresRepository) Get(shortURL string) (string, error) {
 	var originalURL string
 
 	err := row.Scan(&originalURL)
+	if errors.Is(err, sql.ErrNoRows) {
+		logger.Log.Info("postgres: url not found", zap.String("alias", shortURL))
+		return "", ErrShortURLNotFound
+	}
 	if err != nil {
+		logger.Log.Error("postgres: failed to query url", zap.String("shortURL", shortURL), zap.Error(err))
 		return "", err
 	}
 	return originalURL, nil
+}
+
+func (p *PostgresRepository) GetAll(baseURL string) ([]URLOutput, error) {
+	query := "SELECT alias, original_url FROM urls"
+	rows, err := p.db.QueryContext(p.ctx, query)
+	if errors.Is(err, sql.ErrNoRows) {
+		logger.Log.Info("postgres: no rows found")
+		return nil, nil
+	}
+	if err != nil {
+		logger.Log.Error("postgres: failed to fetch all urls", zap.Error(err))
+		return nil, err
+	}
+	defer func() {
+		err := rows.Close()
+		if err != nil {
+			logger.Log.Error("postgres: failed to close rows", zap.Error(err))
+			return
+		}
+	}()
+
+	res := make([]URLOutput, 0)
+	for rows.Next() {
+		var alias string
+		var originalURL string
+		err := rows.Scan(&alias, &originalURL)
+		if err != nil {
+			logger.Log.Error("postgres: failed to fetch all urls", zap.Error(err))
+			return nil, err
+		}
+		model := URLOutput{
+			ShortURL:    baseURL + "/" + alias,
+			OriginalURL: originalURL,
+		}
+		res = append(res, model)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		logger.Log.Error("postgres: failed to fetch all urls", zap.Error(err))
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (p *PostgresRepository) Store(baseURL, targetURL string) (string, error) {
@@ -113,7 +162,7 @@ func (p *PostgresRepository) Store(baseURL, targetURL string) (string, error) {
 	return baseURL + "/" + alias, nil
 }
 
-func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error) {
+func (p *PostgresRepository) StoreBatch(baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
@@ -131,7 +180,7 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 	}
 
 	logger.Log.Debug("postgres: storing batch of urls", zap.Int("count", len(urls)))
-	res := make([]URLOutput, len(urls))
+	res := make([]BatchURLOutput, len(urls))
 	for i, url := range urls {
 		shortURL, err := p.Store(baseURL, url.OriginalURL)
 		if err != nil {
@@ -139,7 +188,7 @@ func (p *PostgresRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLO
 			return nil, err
 		}
 
-		ou := URLOutput{
+		ou := BatchURLOutput{
 			CID:      url.CID,
 			ShortURL: shortURL,
 		}

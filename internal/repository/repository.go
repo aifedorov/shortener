@@ -33,18 +33,24 @@ type Repository interface {
 	Ping() error
 	Close() error
 	Get(shortURL string) (string, error)
+	GetAll(baseURL string) ([]URLOutput, error)
 	Store(baseURL, targetURL string) (string, error)
-	StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error)
+	StoreBatch(baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error)
 }
 
-type URLInput struct {
+type BatchURLInput struct {
 	CID         string
 	OriginalURL string
 }
 
-type URLOutput struct {
+type BatchURLOutput struct {
 	CID      string
 	ShortURL string
+}
+
+type URLOutput struct {
+	ShortURL    string
+	OriginalURL string
 }
 
 func NewRepository(ctx context.Context, cfg *config.Config) Repository {

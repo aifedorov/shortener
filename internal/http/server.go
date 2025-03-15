@@ -90,5 +90,5 @@ func (s *Server) mountHandlers() {
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
 	})
 	s.router.Get("/ping", ping.NewPingHandler(s.repo))
-	s.router.Get("/api/user/urls", urls.NewURLsHandler())
+	s.router.Get("/api/user/urls", urls.NewURLsHandler(s.config, s.repo))
 }

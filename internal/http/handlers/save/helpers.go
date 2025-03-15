@@ -28,7 +28,7 @@ func encodeResponse(rw http.ResponseWriter, resURL string) error {
 	return nil
 }
 
-func encodeBatchResponse(rw http.ResponseWriter, urls []repository.URLOutput) error {
+func encodeBatchResponse(rw http.ResponseWriter, urls []repository.BatchURLOutput) error {
 	encoder := json.NewEncoder(rw)
 	resp := make([]BatchResponse, len(urls))
 	for url := range urls {
@@ -45,13 +45,13 @@ func encodeBatchResponse(rw http.ResponseWriter, urls []repository.URLOutput) er
 	return nil
 }
 
-func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]repository.URLInput, error) {
-	var urls = make([]repository.URLInput, len(reqURLs))
+func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]repository.BatchURLInput, error) {
+	var urls = make([]repository.BatchURLInput, len(reqURLs))
 	for i, reqBodyURL := range reqURLs {
 		if err := urlChecker.CheckURL(reqBodyURL.OriginalURL); err != nil {
 			return nil, err
 		}
-		urls[i] = repository.URLInput{
+		urls[i] = repository.BatchURLInput{
 			CID:         reqBodyURL.CID,
 			OriginalURL: reqBodyURL.OriginalURL,
 		}

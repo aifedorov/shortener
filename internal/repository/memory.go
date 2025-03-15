@@ -45,6 +45,11 @@ func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 	return targetURL, nil
 }
 
+func (ms *MemoryRepository) GetAll(baseURL string) ([]URLOutput, error) {
+	// TODO: Implement me.
+	return nil, nil
+}
+
 func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -65,7 +70,7 @@ func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
 	return resURL, nil
 }
 
-func (ms *MemoryRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error) {
+func (ms *MemoryRepository) StoreBatch(baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
@@ -74,7 +79,7 @@ func (ms *MemoryRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOu
 	defer ms.mu.Unlock()
 
 	logger.Log.Debug("memory: storing batch of urls", zap.Int("count", len(urls)))
-	res := make([]URLOutput, len(urls))
+	res := make([]BatchURLOutput, len(urls))
 	for i, url := range urls {
 		alias, err := ms.Rand.GenRandomString()
 		if err != nil {
@@ -83,7 +88,7 @@ func (ms *MemoryRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOu
 		}
 
 		resURL := baseURL + "/" + alias
-		ou := URLOutput{
+		ou := BatchURLOutput{
 			CID:      url.CID,
 			ShortURL: resURL,
 		}
