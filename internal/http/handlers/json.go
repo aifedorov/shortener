@@ -1,31 +1,31 @@
-package save
+package handlers
 
 import (
 	"errors"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
+	"net/http"
+
 	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/aifedorov/shortener/pkg/validate"
-	"net/http"
 )
 
-func NewSaveJSONBatchHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
+func NewSaveJSONHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
-		reqURLs, err := decodeBatchRequest(req)
+		body, err := decodeRequest(req)
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
-		urls, err := validateURLs(reqURLs, urlChecker)
-		if err != nil {
+		if err := urlChecker.CheckURL(body.URL); err != nil {
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
-		res, err := repo.StoreBatch(config.BaseURL, urls)
+		resURL, err := repo.Store(config.BaseURL, body.URL)
 		var cErr *repository.ConflictError
 		if errors.As(err, &cErr) {
 			logger.Log.Debug("sending HTTP 409 response")
@@ -44,8 +44,7 @@ func NewSaveJSONBatchHandler(config *config.Config, repo repository.Repository, 
 
 		logger.Log.Debug("sending HTTP 201 response")
 		rw.WriteHeader(http.StatusCreated)
-
-		if err := encodeBatchResponse(rw, res); err != nil {
+		if err := encodeResponse(rw, resURL); err != nil {
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

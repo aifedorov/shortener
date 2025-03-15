@@ -6,17 +6,15 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/aifedorov/shortener/internal/http/handlers/ping"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/http/handlers/redirect"
-	"github.com/aifedorov/shortener/internal/http/handlers/save"
-	"github.com/aifedorov/shortener/internal/http/handlers/urls"
-	"github.com/aifedorov/shortener/internal/middleware"
-	"github.com/aifedorov/shortener/internal/middleware/logger"
+	"github.com/aifedorov/shortener/internal/http/handlers"
+	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	"github.com/aifedorov/shortener/internal/http/middleware/compress"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/aifedorov/shortener/pkg/validate"
 )
@@ -67,9 +65,10 @@ func (s *Server) Run() {
 	}()
 
 	s.router.Use(chimiddleware.AllowContentType(supportedContentTypes...))
-	s.router.Use(middleware.GzipMiddleware)
+	s.router.Use(compress.GzipMiddleware)
 	s.router.Use(logger.RequestLogger)
 	s.router.Use(logger.ResponseLogger)
+	s.router.Use(auth.JWTAuth)
 
 	s.mountHandlers()
 
@@ -81,14 +80,14 @@ func (s *Server) Run() {
 }
 
 func (s *Server) mountHandlers() {
-	s.router.Post("/", save.NewSavePlainTextHandler(s.config, s.repo, s.urlChecker))
-	s.router.Post("/api/shorten", save.NewSaveJSONHandler(s.config, s.repo, s.urlChecker))
-	s.router.Post("/api/shorten/batch", save.NewSaveJSONBatchHandler(s.config, s.repo, s.urlChecker))
-	s.router.Get("/{shortURL}", redirect.NewRedirectHandler(s.repo))
+	s.router.Post("/", handlers.NewSavePlainTextHandler(s.config, s.repo, s.urlChecker))
+	s.router.Post("/api/shorten", handlers.NewSaveJSONHandler(s.config, s.repo, s.urlChecker))
+	s.router.Post("/api/shorten/batch", handlers.NewSaveJSONBatchHandler(s.config, s.repo, s.urlChecker))
+	s.router.Get("/{shortURL}", handlers.NewRedirectHandler(s.repo))
 	s.router.Get("/", func(res http.ResponseWriter, r *http.Request) {
 		logger.Log.Debug("server: got request with bad data", zap.String("method", r.Method))
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
 	})
-	s.router.Get("/ping", ping.NewPingHandler(s.repo))
-	s.router.Get("/api/user/urls", urls.NewURLsHandler(s.config, s.repo))
+	s.router.Get("/ping", handlers.NewPingHandler(s.repo))
+	s.router.Get("/api/user/urls", handlers.NewURLsHandler(s.config, s.repo))
 }

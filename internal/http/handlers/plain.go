@@ -1,12 +1,12 @@
-package save
+package handlers
 
 import (
 	"errors"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"io"
 	"net/http"
 
 	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/aifedorov/shortener/pkg/validate"
 	"go.uber.org/zap"

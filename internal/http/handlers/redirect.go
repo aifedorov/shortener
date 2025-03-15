@@ -1,8 +1,8 @@
-package redirect
+package handlers
 
 import (
 	"errors"
-	"github.com/aifedorov/shortener/internal/middleware/logger"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"

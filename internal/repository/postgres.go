@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"time"
 
-	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"github.com/aifedorov/shortener/pkg/random"
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"

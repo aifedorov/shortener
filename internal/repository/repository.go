@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/middleware/logger"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
 type ConflictError struct {

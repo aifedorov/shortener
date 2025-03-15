@@ -3,9 +3,9 @@ package repository
 import (
 	"bufio"
 	"encoding/json"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"os"
 
-	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"github.com/aifedorov/shortener/pkg/random"
 	"github.com/google/uuid"
 	"go.uber.org/zap"

@@ -1,4 +1,4 @@
-package save
+package handlers
 
 import (
 	"encoding/json"
@@ -6,10 +6,11 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/aifedorov/shortener/internal/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/aifedorov/shortener/pkg/validate"
 	"go.uber.org/zap"
+
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
 func decodeRequest(req *http.Request) (RequestBody, error) {

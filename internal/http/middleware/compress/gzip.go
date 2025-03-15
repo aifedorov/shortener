@@ -1,8 +1,8 @@
-package middleware
+package compress
 
 import (
 	"errors"
-	"github.com/aifedorov/shortener/internal/middleware/logger"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"io"
 	"net/http"
 	"slices"
