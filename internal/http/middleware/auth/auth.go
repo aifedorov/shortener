@@ -13,6 +13,10 @@ import (
 	"go.uber.org/zap"
 )
 
+type ContextKey string
+
+const UserIDKey ContextKey = "user_id"
+
 const (
 	tokenExp  = time.Hour * 3
 	tokenName = "JWT"
@@ -35,7 +39,7 @@ func JWTAuth(next http.Handler) http.Handler {
 			userID := uuid.NewString()
 			setNewCookies(userID, w)
 
-			ctx := context.WithValue(r.Context(), "user_id", userID)
+			ctx := context.WithValue(r.Context(), UserIDKey, userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
@@ -47,7 +51,7 @@ func JWTAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "user_id", userID)
+		ctx := context.WithValue(r.Context(), UserIDKey, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

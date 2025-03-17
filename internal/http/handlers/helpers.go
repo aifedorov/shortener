@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"io"
 	"net/http"
 
@@ -106,7 +107,7 @@ func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]rep
 }
 
 func getUseID(r *http.Request) (string, error) {
-	userID, ok := r.Context().Value("user_id").(string)
+	userID, ok := r.Context().Value(auth.UserIDKey).(string)
 	if !ok {
 		logger.Log.Error("user_id not found")
 		return "", errors.New("user_id not found")
