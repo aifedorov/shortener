@@ -45,7 +45,12 @@ func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 	return targetURL, nil
 }
 
-func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
+func (ms *MemoryRepository) GetAll(userID, baseURL string) ([]URLOutput, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (ms *MemoryRepository) Store(userID, baseURL, targetURL string) (string, error) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
@@ -65,7 +70,7 @@ func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
 	return resURL, nil
 }
 
-func (ms *MemoryRepository) StoreBatch(baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
+func (ms *MemoryRepository) StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}

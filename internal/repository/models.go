@@ -11,6 +11,6 @@ type BatchURLOutput struct {
 }
 
 type URLOutput struct {
-	ShortURL    string
-	OriginalURL string
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }

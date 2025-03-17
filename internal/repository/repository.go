@@ -34,8 +34,9 @@ type Repository interface {
 	Ping() error
 	Close() error
 	Get(shortURL string) (string, error)
-	Store(baseURL, targetURL string) (string, error)
-	StoreBatch(baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error)
+	GetAll(userID, baseURL string) ([]URLOutput, error)
+	Store(userID, baseURL, targetURL string) (string, error)
+	StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error)
 }
 
 func NewRepository(ctx context.Context, cfg *config.Config) Repository {

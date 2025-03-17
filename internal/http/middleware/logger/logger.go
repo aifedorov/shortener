@@ -63,6 +63,7 @@ func RequestLogger(next http.Handler) http.Handler {
 		Log.Info("HTTP request ==>",
 			zap.String("method", r.Method),
 			zap.String("URL", r.URL.String()),
+			zap.Any("headers", r.Header),
 			zap.Duration("duration", duration),
 		)
 	})
@@ -82,8 +83,9 @@ func ResponseLogger(next http.Handler) http.Handler {
 
 		Log.Info("HTTP response <==",
 			zap.Int("status", rd.status),
-			zap.Int("size", rd.size),
+			zap.Any("headers", r.Header),
 			zap.ByteString("body", rd.body),
+			zap.Int("size", rd.size),
 			zap.Duration("duration", duration),
 		)
 	})

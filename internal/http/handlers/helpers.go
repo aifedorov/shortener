@@ -13,10 +13,10 @@ import (
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
-func decodeRequest(req *http.Request) (RequestBody, error) {
+func decodeRequest(r *http.Request) (RequestBody, error) {
 	logger.Log.Debug("decoding request body")
 	var body RequestBody
-	err := json.NewDecoder(req.Body).Decode(&body)
+	err := json.NewDecoder(r.Body).Decode(&body)
 	if errors.Is(err, io.EOF) {
 		return RequestBody{}, errors.New("request body is empty")
 	}
@@ -27,10 +27,10 @@ func decodeRequest(req *http.Request) (RequestBody, error) {
 	return body, nil
 }
 
-func decodeBatchRequest(req *http.Request) ([]BatchRequest, error) {
+func decodeBatchRequest(r *http.Request) ([]BatchRequest, error) {
 	logger.Log.Debug("decoding request body")
 	var urls []BatchRequest
-	if err := json.NewDecoder(req.Body).Decode(&urls); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&urls); err != nil {
 		logger.Log.Error("failed to decode request", zap.Error(err))
 		return nil, errors.New("failed to decode request body")
 	}
@@ -70,6 +70,25 @@ func encodeBatchResponse(rw http.ResponseWriter, urls []repository.BatchURLOutpu
 	return nil
 }
 
+func encodeURLsResponse(rw http.ResponseWriter, urls []repository.URLOutput) error {
+	logger.Log.Debug("encoding response")
+	encoder := json.NewEncoder(rw)
+	resp := make([]repository.URLOutput, len(urls))
+	for i, url := range urls {
+		r := repository.URLOutput{
+			ShortURL:    url.ShortURL,
+			OriginalURL: url.OriginalURL,
+		}
+		resp[i] = r
+	}
+
+	if err := encoder.Encode(resp); err != nil {
+		logger.Log.Error("failed to encode response", zap.Error(err))
+		return errors.New("failed to encode response")
+	}
+	return nil
+}
+
 func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]repository.BatchURLInput, error) {
 	logger.Log.Debug("validating url")
 	var urls = make([]repository.BatchURLInput, len(reqURLs))
@@ -84,4 +103,13 @@ func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]rep
 		}
 	}
 	return urls, nil
+}
+
+func getUseID(r *http.Request) (string, error) {
+	userID, ok := r.Context().Value("user_id").(string)
+	if !ok {
+		logger.Log.Error("user_id not found")
+		return "", errors.New("user_id not found")
+	}
+	return userID, nil
 }

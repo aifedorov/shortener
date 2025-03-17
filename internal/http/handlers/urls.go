@@ -1,13 +1,12 @@
 package handlers
 
 import (
+	"errors"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
+	"go.uber.org/zap"
 	"net/http"
 
-	"go.uber.org/zap"
-
 	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
-	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 )
 
@@ -17,23 +16,35 @@ type URLResponse struct {
 }
 
 func NewURLsHandler(cfg *config.Config, repo repository.Repository) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+	return func(rw http.ResponseWriter, r *http.Request) {
+		rw.Header().Set("Content-Type", "application/json")
 
-		cookie, err := r.Cookie(auth.TokenName)
+		userID, err := getUseID(r)
 		if err != nil {
-			logger.Log.Error("failed to get cookie", zap.Error(err))
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			logger.Log.Error("error getting user id", zap.Error(err))
+			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 
-		userID, err := auth.GetUserID(cookie.Value)
-		if err != nil || userID == "" {
-			logger.Log.Error("failed to get user id", zap.Error(err))
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		logger.Log.Debug("fetching urls for user_id", zap.String("user_id", userID))
+		urls, err := repo.GetAll(userID, cfg.BaseURL)
+		if errors.Is(err, repository.ErrUserHasNoData) {
+			logger.Log.Info("user don't have any urls", zap.String("user_id", userID))
+			http.Error(rw, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+			return
+		}
+		if err != nil {
+			logger.Log.Error("error fetching urls", zap.Error(err))
+			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
+		rw.WriteHeader(http.StatusOK)
+		err = encodeURLsResponse(rw, urls)
+		if err != nil {
+			logger.Log.Error("error encoding urls", zap.Error(err))
+			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 	}
 }

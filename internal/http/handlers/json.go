@@ -2,19 +2,25 @@ package handlers
 
 import (
 	"errors"
-	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"net/http"
 
 	"github.com/aifedorov/shortener/internal/config"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/aifedorov/shortener/pkg/validate"
 )
 
 func NewSaveJSONHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
-	return func(rw http.ResponseWriter, req *http.Request) {
+	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
-		body, err := decodeRequest(req)
+		userID, err := getUseID(r)
+		if err != nil {
+			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+
+		body, err := decodeRequest(r)
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
@@ -25,7 +31,7 @@ func NewSaveJSONHandler(config *config.Config, repo repository.Repository, urlCh
 			return
 		}
 
-		resURL, err := repo.Store(config.BaseURL, body.URL)
+		resURL, err := repo.Store(userID, config.BaseURL, body.URL)
 		var cErr *repository.ConflictError
 		if errors.As(err, &cErr) {
 			logger.Log.Debug("sending HTTP 409 response")

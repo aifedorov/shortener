@@ -3,12 +3,13 @@ package repository
 import (
 	"bufio"
 	"encoding/json"
-	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"os"
 
 	"github.com/aifedorov/shortener/pkg/random"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
 const (
@@ -90,7 +91,12 @@ func (fs *FileRepository) Get(shortURL string) (string, error) {
 	return "", ErrShortURLNotFound
 }
 
-func (fs *FileRepository) Store(baseURL, targetURL string) (string, error) {
+func (fs *FileRepository) GetAll(userID, baseURL string) ([]URLOutput, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (fs *FileRepository) Store(userID, baseURL, targetURL string) (string, error) {
 	alias, err := fs.rand.GenRandomString()
 	if err != nil {
 		logger.Log.Error("fileStorage: generate random string failed", zap.Error(err))
@@ -108,7 +114,7 @@ func (fs *FileRepository) Store(baseURL, targetURL string) (string, error) {
 	return shortURL, nil
 }
 
-func (fs *FileRepository) StoreBatch(baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
+func (fs *FileRepository) StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
