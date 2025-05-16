@@ -3,15 +3,14 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 
+	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/aifedorov/shortener/pkg/validate"
-	"go.uber.org/zap"
-
-	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
 func decodeRequest(r *http.Request) (RequestBody, error) {
@@ -36,6 +35,15 @@ func decodeBatchRequest(r *http.Request) ([]BatchRequest, error) {
 		return nil, errors.New("failed to decode request body")
 	}
 	return urls, nil
+}
+
+func decodeAliasesRequest(r *http.Request) ([]string, error) {
+	logger.Log.Debug("decoding request body")
+	var aliases []string
+	if err := json.NewDecoder(r.Body).Decode(&aliases); err != nil {
+		logger.Log.Error("failed to decode request", zap.Error(err))
+	}
+	return aliases, nil
 }
 
 func encodeResponse(rw http.ResponseWriter, resURL string) error {
@@ -104,6 +112,17 @@ func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]rep
 		}
 	}
 	return urls, nil
+}
+
+func validateAliases(aliases []string) bool {
+	logger.Log.Debug("validating aliases")
+	for _, alias := range aliases {
+		if len(alias) == 0 {
+			logger.Log.Error("invalid alias", zap.String("alias", alias))
+			return false
+		}
+	}
+	return true
 }
 
 func getUseID(r *http.Request) (string, error) {

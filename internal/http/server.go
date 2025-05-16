@@ -90,4 +90,5 @@ func (s *Server) mountHandlers() {
 	})
 	s.router.Get("/ping", handlers.NewPingHandler(s.repo))
 	s.router.Get("/api/user/urls", handlers.NewURLsHandler(s.config, s.repo))
+	s.router.Delete("/api/user/urls", handlers.NewDeleteHandler(s.repo))
 }

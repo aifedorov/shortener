@@ -99,3 +99,8 @@ func (ms *MemoryRepository) StoreBatch(userID, baseURL string, urls []BatchURLIn
 	logger.Log.Debug("memory: store updated", zap.Any("store", ms.PathToURL))
 	return res, nil
 }
+
+func (ms *MemoryRepository) DeleteBatch(userID string, aliases []string) error {
+	//TODO implement me
+	panic("implement me")
+}

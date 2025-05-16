@@ -20,6 +20,15 @@ type PostgresRepository struct {
 	rand random.Randomizer
 }
 
+type Model struct {
+	userID      string
+	cid         string
+	alias       string
+	originalURL string
+	baseURL     string
+	isDeleted   bool
+}
+
 func NewPosgresRepository(ctx context.Context, dsn string) *PostgresRepository {
 	return &PostgresRepository{
 		ctx:  ctx,
@@ -97,12 +106,8 @@ func (p *PostgresRepository) StoreBatch(userID, baseURL string, urls []BatchURLI
 	return p.storeBatch(userID, baseURL, urls)
 }
 
-type Model struct {
-	userID      string
-	cid         string
-	alias       string
-	originalURL string
-	baseURL     string
+func (p *PostgresRepository) DeleteBatch(userID string, aliases []string) error {
+	return p.deleteBatch(userID, aliases)
 }
 
 func (p *PostgresRepository) createTable() error {
@@ -119,6 +124,7 @@ func (p *PostgresRepository) createTable() error {
 			alias TEXT NOT NULL,
 		 	original_url TEXT NOT NULL UNIQUE,
 		 	created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		 	is_deleted BOOLEAN DEFAULT FALSE,
             UNIQUE (user_id, original_url)
 		);
 		`
@@ -271,7 +277,7 @@ func (p *PostgresRepository) fetchOriginalURL(alias string) (string, error) {
 }
 
 func (p *PostgresRepository) fetchURs(userID, baseURL string) ([]URLOutput, error) {
-	query := "SELECT alias, original_url FROM urls WHERE user_id = $1"
+	query := "SELECT alias, original_url FROM urls WHERE user_id = $1 AND NOT is_deleted"
 	rows, err := p.db.QueryContext(p.ctx, query, userID)
 	if err != nil {
 		logger.Log.Error("postgres: failed to fetch urls", zap.String("user_id", userID), zap.Error(err))
@@ -339,4 +345,34 @@ func (p *PostgresRepository) insert(model Model) (string, error) {
 		return "", errors.New("failed to insert new url")
 	}
 	return model.baseURL + "/" + model.alias, nil
+}
+
+func (p *PostgresRepository) deleteBatch(userID string, aliases []string) error {
+	if len(aliases) == 0 {
+		return errors.New("aliases is empty")
+	}
+
+	logger.Log.Debug("postgres: begin transaction for deleting batch of urls")
+	tx, err := p.db.Begin()
+	if err != nil {
+		logger.Log.Error("postgres: failed to begin transaction", zap.Error(err))
+		err := tx.Rollback()
+		if err != nil {
+			logger.Log.Error("postgres: failed to rollback transaction", zap.Error(err))
+			return errors.New("failed to rollback transaction")
+		}
+		return errors.New("failed to begin transaction")
+	}
+
+	for _, alias := range aliases {
+		query := "UPDATE urls SET is_deleted = true WHERE user_id = $1 AND alias = $2"
+		_, err := p.db.ExecContext(p.ctx, query, userID, alias)
+		if err != nil {
+			logger.Log.Error("postgres: failed to delete url", zap.Error(err))
+			return errors.New("failed to delete url")
+		}
+	}
+
+	logger.Log.Debug("postgres: commiting transaction for deleting batch of urls")
+	return tx.Commit()
 }

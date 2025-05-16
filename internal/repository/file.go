@@ -129,6 +129,11 @@ func (fs *FileRepository) StoreBatch(userID, baseURL string, urls []BatchURLInpu
 	return res, nil
 }
 
+func (fs *FileRepository) DeleteBatch(userID string, aliases []string) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (fs *FileRepository) addNewURL(shortURL string, originalURL string) error {
 	logger.Log.Debug("fileStorage: storing new url", zap.String("short_url", shortURL), zap.String("original_url", originalURL))
 	record := URLMapping{

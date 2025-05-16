@@ -37,6 +37,7 @@ type Repository interface {
 	GetAll(userID, baseURL string) ([]URLOutput, error)
 	Store(userID, baseURL, targetURL string) (string, error)
 	StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error)
+	DeleteBatch(userID string, aliases []string) error
 }
 
 func NewRepository(ctx context.Context, cfg *config.Config) Repository {
