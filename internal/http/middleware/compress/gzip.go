@@ -2,14 +2,14 @@ package compress
 
 import (
 	"errors"
-	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"io"
 	"net/http"
 	"slices"
 
+	"compress/gzip"
 	"go.uber.org/zap"
 
-	"compress/gzip"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
 type compressWriter struct {

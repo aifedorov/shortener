@@ -13,12 +13,7 @@ func NewDeleteHandler(repo repository.Repository) http.HandlerFunc {
 		rw.Header().Set("Content-Type", "application/json")
 
 		aliases, err := decodeAliasesRequest(r)
-		if err != nil {
-			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-			return
-		}
-
-		if !validateAliases(aliases) {
+		if err != nil || len(aliases) == 0 {
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}

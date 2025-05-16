@@ -3,12 +3,12 @@ package compress
 import (
 	"bytes"
 	"compress/gzip"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 

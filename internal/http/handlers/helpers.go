@@ -42,6 +42,7 @@ func decodeAliasesRequest(r *http.Request) ([]string, error) {
 	var aliases []string
 	if err := json.NewDecoder(r.Body).Decode(&aliases); err != nil {
 		logger.Log.Error("failed to decode request", zap.Error(err))
+		return nil, errors.New("failed to decode request body")
 	}
 	return aliases, nil
 }
@@ -112,17 +113,6 @@ func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]rep
 		}
 	}
 	return urls, nil
-}
-
-func validateAliases(aliases []string) bool {
-	logger.Log.Debug("validating aliases")
-	for _, alias := range aliases {
-		if len(alias) == 0 {
-			logger.Log.Error("invalid alias", zap.String("alias", alias))
-			return false
-		}
-	}
-	return true
 }
 
 func getUseID(r *http.Request) (string, error) {
