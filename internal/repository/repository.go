@@ -27,6 +27,7 @@ var (
 	ErrShortURLNotFound = errors.New("short url not found")
 	ErrURLExists        = errors.New("url exists")
 	ErrUserHasNoData    = errors.New("user has no data")
+	ErrURLDeleted       = errors.New("url deleted")
 )
 
 type Repository interface {

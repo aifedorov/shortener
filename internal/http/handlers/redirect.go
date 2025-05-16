@@ -20,6 +20,10 @@ func NewRedirectHandler(repo repository.Repository) http.HandlerFunc {
 			http.NotFound(rw, r)
 			return
 		}
+		if errors.Is(err, repository.ErrURLDeleted) {
+			logger.Log.Info("url deleted", zap.String("alias", shortURL))
+			http.Error(rw, http.StatusText(http.StatusGone), http.StatusGone)
+		}
 		if err != nil {
 			logger.Log.Error("failed to get short url", zap.String("short_url", shortURL), zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

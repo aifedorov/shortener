@@ -81,6 +81,9 @@ func (p *PostgresRepository) Get(shortURL string) (string, error) {
 	if errors.Is(err, ErrShortURLNotFound) {
 		return "", ErrShortURLNotFound
 	}
+	if errors.Is(err, ErrURLDeleted) {
+		return "", ErrURLDeleted
+	}
 	if err != nil {
 		return "", errors.New("failed to get original URL")
 	}
@@ -260,11 +263,11 @@ func (p *PostgresRepository) fetchOriginalURLWithUserID(userID, alias string) (s
 }
 
 func (p *PostgresRepository) fetchOriginalURL(alias string) (string, error) {
-	query := "SELECT original_url FROM urls WHERE alias = $1"
+	query := "SELECT original_url, is_deleted FROM urls WHERE alias = $1"
 	row := p.db.QueryRowContext(p.ctx, query, alias)
 
-	var originalURL string
-	err := row.Scan(&originalURL)
+	var model Model
+	err := row.Scan(&model.originalURL, &model.isDeleted)
 	if errors.Is(err, sql.ErrNoRows) {
 		logger.Log.Error("postgres: original url not found", zap.String("alias", alias))
 		return "", ErrShortURLNotFound
@@ -273,7 +276,10 @@ func (p *PostgresRepository) fetchOriginalURL(alias string) (string, error) {
 		logger.Log.Error("postgres: failed to fetch original url", zap.Error(err))
 		return "", errors.New("failed to fetch original url")
 	}
-	return originalURL, nil
+	if model.isDeleted {
+		return "", ErrURLDeleted
+	}
+	return model.originalURL, nil
 }
 
 func (p *PostgresRepository) fetchURs(userID, baseURL string) ([]URLOutput, error) {

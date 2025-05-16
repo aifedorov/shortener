@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"errors"
+	"net/http"
+
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
-	"net/http"
 )
 
 func NewDeleteHandler(repo repository.Repository) http.HandlerFunc {
@@ -22,6 +24,10 @@ func NewDeleteHandler(repo repository.Repository) http.HandlerFunc {
 		}
 
 		userID, err := getUseID(r)
+		if errors.Is(err, repository.ErrURLDeleted) {
+			http.StatusText(http.StatusGone)
+			return
+		}
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
