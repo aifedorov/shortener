@@ -21,8 +21,6 @@ const UserIDKey ContextKey = "user_id"
 const (
 	tokenExp  = time.Hour * 3
 	tokenName = "JWT"
-	// TODO:  Use encrypted storage for the key.
-	secretKey = "1q2w3e4r"
 )
 
 type Claims struct {
@@ -30,7 +28,17 @@ type Claims struct {
 	UserID string
 }
 
-func JWTAuth(next http.Handler) http.Handler {
+type Middleware struct {
+	secretKey string
+}
+
+func NewMiddleware(secretKey string) *Middleware {
+	return &Middleware{
+		secretKey: secretKey,
+	}
+}
+
+func (m *Middleware) JWTAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie(tokenName)
 		if errors.Is(err, http.ErrNoCookie) {
@@ -38,14 +46,14 @@ func JWTAuth(next http.Handler) http.Handler {
 
 			logger.Log.Debug("creating new user_id")
 			userID := uuid.NewString()
-			setNewCookies(userID, w)
+			setNewCookies(userID, m.secretKey, w)
 
 			ctx := context.WithValue(r.Context(), UserIDKey, userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
-		userID, err := parseUserID(cookie.Value)
+		userID, err := parseUserID(cookie.Value, m.secretKey)
 		if err != nil {
 			logger.Log.Error("failed to get cookie", zap.String("name", tokenName), zap.Error(err))
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -57,7 +65,7 @@ func JWTAuth(next http.Handler) http.Handler {
 	})
 }
 
-func parseUserID(tokenString string) (string, error) {
+func parseUserID(tokenString, secretKey string) (string, error) {
 	logger.Log.Debug("parsing token")
 	if tokenString == "" {
 		logger.Log.Error("empty token")
@@ -85,9 +93,9 @@ func parseUserID(tokenString string) (string, error) {
 	return claims.UserID, nil
 }
 
-func setNewCookies(userID string, w http.ResponseWriter) {
+func setNewCookies(userID, secretKey string, w http.ResponseWriter) {
 	logger.Log.Debug("setting new cookies", zap.String("user_id", userID))
-	token, err := buildJWTString(userID)
+	token, err := buildJWTString(userID, secretKey)
 	if err != nil {
 		logger.Log.Error("failed to build JWT token", zap.String("error", err.Error()))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -108,7 +116,7 @@ func setNewCookies(userID string, w http.ResponseWriter) {
 	http.SetCookie(w, &cookie)
 }
 
-func buildJWTString(userID string) (string, error) {
+func buildJWTString(userID, secretKey string) (string, error) {
 	logger.Log.Debug("building JWT token with user_id", zap.String("user_id", userID))
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{

@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"log"
 	"os"
 )
 
@@ -11,6 +12,7 @@ type Config struct {
 	LogLevel        string
 	FileStoragePath string
 	DSN             string
+	SecretKey       string
 }
 
 func NewConfig() *Config {
@@ -43,5 +45,11 @@ func (cfg *Config) ParseFlags() {
 
 	if envDSN := os.Getenv("DATABASE_DSN"); envDSN != "" {
 		cfg.DSN = envDSN
+	}
+
+	secretKey := os.Getenv("SECRET_KEY")
+	cfg.SecretKey = secretKey
+	if secretKey == "" {
+		log.Fatal("secret key is not set")
 	}
 }

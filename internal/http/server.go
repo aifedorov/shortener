@@ -68,7 +68,9 @@ func (s *Server) Run() {
 	s.router.Use(compress.GzipMiddleware)
 	s.router.Use(logger.RequestLogger)
 	s.router.Use(logger.ResponseLogger)
-	s.router.Use(auth.JWTAuth)
+
+	m := auth.NewMiddleware(s.config.SecretKey)
+	s.router.Use(m.JWTAuth)
 
 	s.mountHandlers()
 
