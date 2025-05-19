@@ -115,9 +115,9 @@ func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]rep
 	return urls, nil
 }
 
-func getUseID(r *http.Request) (string, error) {
+func getUserID(r *http.Request) (string, error) {
 	userID, ok := r.Context().Value(auth.UserIDKey).(string)
-	if !ok {
+	if !ok || userID == "" {
 		logger.Log.Error("user_id not found")
 		return "", errors.New("user_id not found")
 	}

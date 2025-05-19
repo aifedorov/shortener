@@ -18,7 +18,7 @@ func NewDeleteHandler(repo repository.Repository) http.HandlerFunc {
 			return
 		}
 
-		userID, err := getUseID(r)
+		userID, err := getUserID(r)
 		if errors.Is(err, repository.ErrURLDeleted) {
 			rw.WriteHeader(http.StatusGone)
 			return

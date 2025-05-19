@@ -14,7 +14,7 @@ func NewSaveJSONHandler(config *config.Config, repo repository.Repository, urlCh
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
-		userID, err := getUseID(r)
+		userID, err := getUserID(r)
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return

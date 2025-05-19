@@ -45,7 +45,7 @@ func JWTAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		userID, err := getUserID(cookie.Value)
+		userID, err := parseUserID(cookie.Value)
 		if err != nil {
 			logger.Log.Error("failed to get cookie", zap.String("name", tokenName), zap.Error(err))
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -57,7 +57,7 @@ func JWTAuth(next http.Handler) http.Handler {
 	})
 }
 
-func getUserID(tokenString string) (string, error) {
+func parseUserID(tokenString string) (string, error) {
 	logger.Log.Debug("parsing token")
 	if tokenString == "" {
 		logger.Log.Error("empty token")

@@ -19,7 +19,7 @@ func NewURLsHandler(cfg *config.Config, repo repository.Repository) http.Handler
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
-		userID, err := getUseID(r)
+		userID, err := getUserID(r)
 		if err != nil {
 			logger.Log.Error("error getting user id", zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)

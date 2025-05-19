@@ -26,7 +26,7 @@ func NewSaveJSONBatchHandler(config *config.Config, repo repository.Repository, 
 			return
 		}
 
-		userID, err := getUseID(r)
+		userID, err := getUserID(r)
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return

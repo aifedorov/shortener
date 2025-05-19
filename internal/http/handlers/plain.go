@@ -15,7 +15,7 @@ func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, 
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "text/plain")
 
-		userID, err := getUseID(r)
+		userID, err := getUserID(r)
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
