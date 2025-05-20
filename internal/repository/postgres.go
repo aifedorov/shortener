@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/google/uuid"
+	"sync"
 	"time"
 
 	"github.com/aifedorov/shortener/pkg/random"
@@ -342,43 +343,46 @@ func (p *PostgresRepository) insert(model Model) (string, error) {
 		alias, err := p.fetchAliasWithUserID(model.userID, model.originalURL)
 		if err != nil {
 			logger.Log.Error("postgres: failed to fetch existed url", zap.Error(err))
-			return "", errors.New("failed to fetch existed url")
+			return "", errors.New("postgres: failed to fetch existed url")
 		}
 		return "", NewConflictError(model.baseURL+"/"+alias, ErrURLExists)
 	}
 	if err != nil {
 		logger.Log.Error("postgres: failed to insert new url", zap.Error(err))
-		return "", errors.New("failed to insert new url")
+		return "", errors.New("postgres: failed to insert new url")
 	}
 	return model.baseURL + "/" + model.alias, nil
 }
 
 func (p *PostgresRepository) deleteBatch(userID string, aliases []string) error {
 	if len(aliases) == 0 {
-		return errors.New("aliases is empty")
+		return errors.New("postgres: aliases is empty")
 	}
 
-	logger.Log.Debug("postgres: begin transaction for deleting batch of urls")
-	tx, err := p.db.Begin()
-	if err != nil {
-		logger.Log.Error("postgres: failed to begin transaction", zap.Error(err))
-		err := tx.Rollback()
-		if err != nil {
-			logger.Log.Error("postgres: failed to rollback transaction", zap.Error(err))
-			return errors.New("failed to rollback transaction")
-		}
-		return errors.New("failed to begin transaction")
-	}
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(aliases))
+	defer close(errChan)
 
 	for _, alias := range aliases {
-		query := "UPDATE urls SET is_deleted = true WHERE user_id = $1 AND alias = $2"
-		_, err := p.db.ExecContext(p.ctx, query, userID, alias)
-		if err != nil {
-			logger.Log.Error("postgres: failed to delete url", zap.Error(err))
-			return errors.New("failed to delete url")
-		}
+		wg.Add(1)
+		go func(alias string) {
+			defer wg.Done()
+
+			query := "UPDATE urls SET is_deleted = true WHERE user_id = $1 AND alias = $2"
+			_, err := p.db.ExecContext(p.ctx, query, userID, alias)
+			if err != nil {
+				errChan <- err
+			}
+		}(alias)
 	}
 
-	logger.Log.Debug("postgres: commiting transaction for deleting batch of urls")
-	return tx.Commit()
+	wg.Wait()
+
+	select {
+	case err := <-errChan:
+		logger.Log.Error("postgres: failed to rollback transaction", zap.Error(err))
+		return err
+	default:
+		return nil
+	}
 }

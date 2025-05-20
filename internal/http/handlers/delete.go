@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"errors"
+	"go.uber.org/zap"
 	"net/http"
 
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
@@ -19,20 +19,18 @@ func NewDeleteHandler(repo repository.Repository) http.HandlerFunc {
 		}
 
 		userID, err := getUserID(r)
-		if errors.Is(err, repository.ErrURLDeleted) {
-			rw.WriteHeader(http.StatusGone)
-			return
-		}
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
-		err = repo.DeleteBatch(userID, aliases)
-		if err != nil {
-			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
+		go func(userID string, aliases []string) {
+			err = repo.DeleteBatch(userID, aliases)
+			if err != nil {
+				logger.Log.Error("failed to delete urls", zap.Error(err))
+				return
+			}
+		}(userID, aliases)
 
 		logger.Log.Debug("sending HTTP 202 response")
 		rw.WriteHeader(http.StatusAccepted)

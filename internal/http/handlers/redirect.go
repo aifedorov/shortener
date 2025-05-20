@@ -16,21 +16,21 @@ func NewRedirectHandler(repo repository.Repository) http.HandlerFunc {
 		shortURL := chi.URLParam(r, "shortURL")
 		target, err := repo.Get(shortURL)
 		if errors.Is(err, repository.ErrShortURLNotFound) {
-			logger.Log.Info("short url not found", zap.String("alias", shortURL))
+			logger.Log.Info("redirect: short url not found", zap.String("alias", shortURL))
 			http.NotFound(rw, r)
 			return
 		}
 		if errors.Is(err, repository.ErrURLDeleted) {
-			logger.Log.Info("url deleted", zap.String("alias", shortURL))
+			logger.Log.Info("redirect: url deleted", zap.String("alias", shortURL))
 			http.Error(rw, http.StatusText(http.StatusGone), http.StatusGone)
 		}
 		if err != nil {
-			logger.Log.Error("failed to get short url", zap.String("short_url", shortURL), zap.Error(err))
+			logger.Log.Error("redirect: failed to get short url", zap.String("short_url", shortURL), zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
-		logger.Log.Info("redirecting to url", zap.String("alias", shortURL), zap.String("url", target))
+		logger.Log.Info("redirect: redirecting to url", zap.String("alias", shortURL), zap.String("url", target))
 		http.Redirect(rw, r, target, http.StatusTemporaryRedirect)
 	}
 }

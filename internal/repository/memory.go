@@ -118,7 +118,7 @@ func (ms *MemoryRepository) StoreBatch(userID, baseURL string, urls []BatchURLIn
 
 func (ms *MemoryRepository) DeleteBatch(userID string, aliases []string) error {
 	if len(aliases) == 0 {
-		return errors.New("aliases is empty")
+		return errors.New("memory: aliases is empty")
 	}
 
 	ms.mu.Lock()
