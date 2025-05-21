@@ -1,12 +1,12 @@
-package ping
+package handlers
 
 import (
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"net/http"
 
 	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/aifedorov/shortener/pkg/logger"
 )
 
 func NewPingHandler(repo repository.Repository) http.HandlerFunc {

@@ -3,21 +3,24 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/aifedorov/shortener/pkg/random"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/aifedorov/shortener/internal/config"
-
-	"github.com/aifedorov/shortener/internal/repository"
-
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/aifedorov/shortener/internal/config"
+	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	"github.com/aifedorov/shortener/internal/repository"
+	"github.com/aifedorov/shortener/pkg/random"
 )
 
 func TestServer_redirect(t *testing.T) {
 	t.Parallel()
+
+	server := NewServer(config.NewConfig(), repository.NewMemoryRepository())
 
 	type want struct {
 		expectedContentType string
@@ -34,7 +37,7 @@ func TestServer_redirect(t *testing.T) {
 	}{
 		{
 			name:   "Get method without id",
-			server: NewServer(config.NewConfig(), repository.NewMemoryRepository()),
+			server: server,
 			method: http.MethodGet,
 			path:   `/`,
 			want: want{
@@ -85,6 +88,8 @@ func TestServer_redirect(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, tt.path, nil)
+			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
+			req = req.WithContext(ctx)
 			res := executeRequest(req, tt.server)
 
 			assert.Equal(t, tt.want.expectedCode, res.Code)
@@ -104,6 +109,8 @@ func TestServer_redirect(t *testing.T) {
 func TestServer_saveURL_TextPlain(t *testing.T) {
 	t.Parallel()
 
+	server := NewServer(config.NewConfig(), repository.NewMemoryRepository())
+
 	type want struct {
 		contentType string
 		code        int
@@ -119,7 +126,7 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 	}{
 		{
 			name:        "Post method without parameters",
-			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
+			server:      server,
 			method:      http.MethodPost,
 			contentType: "text/plain",
 			want: want{
@@ -129,7 +136,7 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 		},
 		{
 			name:        "Post method with valid url",
-			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
+			server:      server,
 			method:      http.MethodPost,
 			contentType: "text/plain",
 			requestBody: `https://google.com`,
@@ -140,7 +147,7 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 		},
 		{
 			name:        "Post method with invalid url",
-			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
+			server:      server,
 			method:      http.MethodPost,
 			contentType: "text/plain",
 			requestBody: `bad_data`,
@@ -173,6 +180,8 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/", strings.NewReader(tt.requestBody))
+			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
+			req = req.WithContext(ctx)
 			req.Header.Set("Content-Type", tt.contentType)
 			res := executeRequest(req, tt.server)
 
@@ -189,6 +198,8 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 func TestServer_saveURL_JSON(t *testing.T) {
 	t.Parallel()
 
+	server := NewServer(config.NewConfig(), repository.NewMemoryRepository())
+
 	type want struct {
 		contentType string
 		code        int
@@ -204,7 +215,7 @@ func TestServer_saveURL_JSON(t *testing.T) {
 	}{
 		{
 			name:        "Post with empty JSON",
-			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
+			server:      server,
 			method:      http.MethodPost,
 			contentType: "application/json",
 			requestBody: `{}`,
@@ -215,7 +226,7 @@ func TestServer_saveURL_JSON(t *testing.T) {
 		},
 		{
 			name:        "Post method with valid JSON",
-			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
+			server:      server,
 			method:      http.MethodPost,
 			contentType: "application/json",
 			requestBody: `{"url": "https://practicum.yandex.ru"}`,
@@ -226,7 +237,7 @@ func TestServer_saveURL_JSON(t *testing.T) {
 		},
 		{
 			name:        "Post method with invalid JSON",
-			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
+			server:      server,
 			method:      http.MethodPost,
 			contentType: "application/json",
 			requestBody: `{"url": "https://practicum.yandex.ru}`,
@@ -237,7 +248,7 @@ func TestServer_saveURL_JSON(t *testing.T) {
 		},
 		{
 			name:        "Post method with invalid URL parameter",
-			server:      NewServer(config.NewConfig(), repository.NewMemoryRepository()),
+			server:      server,
 			method:      http.MethodPost,
 			contentType: "application/json",
 			requestBody: `{"url": "bad_data"}`,
@@ -270,6 +281,8 @@ func TestServer_saveURL_JSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/shorten", strings.NewReader(tt.requestBody))
+			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
+			req = req.WithContext(ctx)
 			req.Header.Set("Content-Type", tt.contentType)
 			res := executeRequest(req, tt.server)
 
@@ -279,6 +292,91 @@ func TestServer_saveURL_JSON(t *testing.T) {
 			if tt.want.body != "" {
 				assert.JSONEq(t, tt.want.body, res.Body.String())
 			}
+		})
+	}
+}
+
+func TestServer_deleteURLs(t *testing.T) {
+	t.Parallel()
+
+	server := NewServer(config.NewConfig(), repository.NewMemoryRepository())
+
+	type want struct {
+		contentType string
+		code        int
+	}
+	tests := []struct {
+		name        string
+		server      *Server
+		method      string
+		contentType string
+		requestBody string
+		want        want
+	}{
+		{
+			name:        "Delete method with valid JSON",
+			server:      server,
+			method:      http.MethodDelete,
+			contentType: "application/json",
+			requestBody: `["abc123", "def456"]`,
+			want: want{
+				contentType: "application/json",
+				code:        http.StatusAccepted,
+			},
+		},
+		{
+			name:        "Delete method with invalid JSON",
+			server:      server,
+			method:      http.MethodDelete,
+			contentType: "application/json",
+			requestBody: `["abc123", "def456"`,
+			want: want{
+				contentType: "text/plain; charset=utf-8",
+				code:        http.StatusBadRequest,
+			},
+		},
+		{
+			name:        "Delete method with empty aliases",
+			server:      server,
+			method:      http.MethodDelete,
+			contentType: "application/json",
+			requestBody: `[]`,
+			want: want{
+				contentType: "text/plain; charset=utf-8",
+				code:        http.StatusBadRequest,
+			},
+		},
+		{
+			name: "Delete method with deleted URL",
+			server: NewServer(
+				config.NewConfig(),
+				&repository.MemoryRepository{
+					PathToURL: map[string]string{
+						"abc123": "https://google.com",
+					},
+				},
+			),
+			method:      http.MethodDelete,
+			contentType: "application/json",
+			requestBody: `["abc123"]`,
+			want: want{
+				contentType: "application/json",
+				code:        http.StatusAccepted,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.server.mountHandlers()
+			req := httptest.NewRequest(tt.method, "/api/user/urls", strings.NewReader(tt.requestBody))
+			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
+			req = req.WithContext(ctx)
+			req.Header.Set("Content-Type", tt.contentType)
+			res := executeRequest(req, tt.server)
+
+			assert.Equal(t, tt.want.code, res.Code)
+			assert.Equal(t, tt.want.contentType, res.Header().Get("Content-Type"))
 		})
 	}
 }
@@ -317,6 +415,8 @@ func TestNewPingHandler(t *testing.T) {
 			server.mountHandlers()
 
 			req := httptest.NewRequest(http.MethodGet, "/ping", strings.NewReader(""))
+			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
+			req = req.WithContext(ctx)
 			res := executeRequest(req, server)
 
 			assert.Equal(t, tt.want.code, res.Code)

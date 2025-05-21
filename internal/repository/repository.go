@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/pkg/logger"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
 type ConflictError struct {
@@ -26,6 +26,8 @@ func (e *ConflictError) Error() string {
 var (
 	ErrShortURLNotFound = errors.New("short url not found")
 	ErrURLExists        = errors.New("url exists")
+	ErrUserHasNoData    = errors.New("user has no data")
+	ErrURLDeleted       = errors.New("url deleted")
 )
 
 type Repository interface {
@@ -33,18 +35,10 @@ type Repository interface {
 	Ping() error
 	Close() error
 	Get(shortURL string) (string, error)
-	Store(baseURL, targetURL string) (string, error)
-	StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error)
-}
-
-type URLInput struct {
-	CID         string
-	OriginalURL string
-}
-
-type URLOutput struct {
-	CID      string
-	ShortURL string
+	GetAll(userID, baseURL string) ([]URLOutput, error)
+	Store(userID, baseURL, targetURL string) (string, error)
+	StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error)
+	DeleteBatch(userID string, aliases []string) error
 }
 
 func NewRepository(ctx context.Context, cfg *config.Config) Repository {

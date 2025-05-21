@@ -1,10 +1,12 @@
 package repository
 
 import (
-	"github.com/aifedorov/shortener/pkg/random"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/aifedorov/shortener/pkg/random"
 )
 
 func TestMemoryStorage_GetURL(t *testing.T) {
@@ -78,7 +80,7 @@ func TestMemoryStorage_SaveURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.storage.Store(tt.baseURL, tt.targetURL)
+			got, err := tt.storage.Store(uuid.NewString(), tt.baseURL, tt.targetURL)
 			assert.ErrorIs(t, err, tt.wantErr)
 
 			if tt.wantPrefix != "" {

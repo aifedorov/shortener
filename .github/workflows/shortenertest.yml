@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     container: golang:1.22
     needs: branchtest
+    env:
+      SECRET_KEY: "t{$z]P%bwE"
 
     services:
       postgres:

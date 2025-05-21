@@ -1,10 +1,10 @@
-package save
+package handlers
 
 import (
 	"errors"
 	"github.com/aifedorov/shortener/internal/config"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/aifedorov/shortener/pkg/logger"
 	"github.com/aifedorov/shortener/pkg/validate"
 	"go.uber.org/zap"
 	"io"
@@ -12,11 +12,17 @@ import (
 )
 
 func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
-	return func(rw http.ResponseWriter, req *http.Request) {
+	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "text/plain")
 
+		userID, err := getUserID(r)
+		if err != nil {
+			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+
 		logger.Log.Debug("reading request body")
-		body, err := io.ReadAll(req.Body)
+		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			logger.Log.Error("failed to read request body", zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -30,13 +36,17 @@ func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, 
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
+		if oURL == "" {
+			oURL = config.BaseURL
+		}
 
 		logger.Log.Debug("saving original url", zap.String("original_url", oURL))
-		resURL, err := repo.Store(config.BaseURL, oURL)
+		resURL, err := repo.Store(userID, config.BaseURL, oURL)
 		var cErr *repository.ConflictError
 		if errors.As(err, &cErr) {
 			logger.Log.Debug("sending HTTP 409 response")
 			rw.WriteHeader(http.StatusConflict)
+
 			_, err := rw.Write([]byte(cErr.ShortURL))
 			if err != nil {
 				logger.Log.Error("failed to write response", zap.Error(err))

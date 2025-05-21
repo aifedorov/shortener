@@ -1,4 +1,4 @@
-package middleware
+package compress
 
 import (
 	"errors"
@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"slices"
 
+	"compress/gzip"
 	"go.uber.org/zap"
 
-	"compress/gzip"
-	"github.com/aifedorov/shortener/pkg/logger"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
 type compressWriter struct {
@@ -77,12 +77,12 @@ func GzipMiddleware(next http.Handler) http.Handler {
 
 		supportsGzip := slices.Contains(r.Header.Values("Accept-Encoding"), "gzip")
 		if supportsGzip {
-			logger.Log.Debug("compressing response body")
+			logger.Log.Debug("compress: compressing response body")
 			cw := newCompressWriter(w)
 			defer func() {
 				err := cw.Close()
 				if err != nil {
-					logger.Log.Error("failed to close gzip writer", zap.Error(err))
+					logger.Log.Error("compress: failed to close gzip writer", zap.Error(err))
 				}
 			}()
 
@@ -91,7 +91,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 
 		sendsGzip := slices.Contains(r.Header.Values("Content-Encoding"), "gzip")
 		if sendsGzip {
-			logger.Log.Debug("decompressing request body")
+			logger.Log.Debug("compress: decompressing request body")
 			cr, err := newCompressReader(r.Body)
 			if errors.Is(err, io.EOF) {
 				next.ServeHTTP(ow, r)
@@ -99,7 +99,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			}
 
 			if err != nil {
-				logger.Log.Error("failed to decompress request body", zap.Error(err))
+				logger.Log.Error("compress: failed to decompress request body", zap.Error(err))
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
@@ -107,7 +107,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			defer func() {
 				err := cr.Close()
 				if err != nil {
-					logger.Log.Error("failed to close gzip reader", zap.Error(err))
+					logger.Log.Error("compress: failed to close gzip reader", zap.Error(err))
 				}
 			}()
 		}

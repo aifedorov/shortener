@@ -1,16 +1,19 @@
 package repository
 
 import (
-	"github.com/aifedorov/shortener/pkg/logger"
-	"github.com/aifedorov/shortener/pkg/random"
-	"go.uber.org/zap"
+	"errors"
 	"sync"
+
+	"go.uber.org/zap"
+
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
+	"github.com/aifedorov/shortener/pkg/random"
 )
 
 type MemoryRepository struct {
 	PathToURL map[string]string
 	Rand      random.Randomizer
-	mu        sync.Mutex
+	mu        sync.RWMutex
 }
 
 func NewMemoryRepository() *MemoryRepository {
@@ -33,8 +36,8 @@ func (ms *MemoryRepository) Close() error {
 }
 
 func (ms *MemoryRepository) Get(shortURL string) (string, error) {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
 
 	targetURL, exists := ms.PathToURL[shortURL]
 	if !exists {
@@ -45,10 +48,23 @@ func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 	return targetURL, nil
 }
 
-func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
+func (ms *MemoryRepository) GetAll(userID, baseURL string) ([]URLOutput, error) {
+	ms.mu.RLocker()
+	defer ms.mu.RUnlock()
 
+	res := make([]URLOutput, len(ms.PathToURL))
+	i := 0
+	for alias, url := range ms.PathToURL {
+		res[i] = URLOutput{
+			ShortURL:    baseURL + "/" + alias,
+			OriginalURL: url,
+		}
+		i++
+	}
+	return res, nil
+}
+
+func (ms *MemoryRepository) Store(userID, baseURL, targetURL string) (string, error) {
 	alias, err := ms.Rand.GenRandomString()
 	if err != nil {
 		logger.Log.Debug("memory: generation of random string failed", zap.Error(err))
@@ -56,16 +72,21 @@ func (ms *MemoryRepository) Store(baseURL, targetURL string) (string, error) {
 	}
 
 	resURL := baseURL + "/" + alias
+	ms.mu.RLock()
 	if _, exists := ms.PathToURL[resURL]; exists {
 		logger.Log.Debug("memory: short url already exists", zap.String("resURL", resURL))
 		return resURL, nil
 	}
+	ms.mu.RUnlock()
 
+	ms.mu.Lock()
 	ms.PathToURL[alias] = targetURL
+	ms.mu.Unlock()
+
 	return resURL, nil
 }
 
-func (ms *MemoryRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOutput, error) {
+func (ms *MemoryRepository) StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
@@ -74,7 +95,7 @@ func (ms *MemoryRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOu
 	defer ms.mu.Unlock()
 
 	logger.Log.Debug("memory: storing batch of urls", zap.Int("count", len(urls)))
-	res := make([]URLOutput, len(urls))
+	res := make([]BatchURLOutput, len(urls))
 	for i, url := range urls {
 		alias, err := ms.Rand.GenRandomString()
 		if err != nil {
@@ -83,7 +104,7 @@ func (ms *MemoryRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOu
 		}
 
 		resURL := baseURL + "/" + alias
-		ou := URLOutput{
+		ou := BatchURLOutput{
 			CID:      url.CID,
 			ShortURL: resURL,
 		}
@@ -93,4 +114,17 @@ func (ms *MemoryRepository) StoreBatch(baseURL string, urls []URLInput) ([]URLOu
 
 	logger.Log.Debug("memory: store updated", zap.Any("store", ms.PathToURL))
 	return res, nil
+}
+
+func (ms *MemoryRepository) DeleteBatch(userID string, aliases []string) error {
+	if len(aliases) == 0 {
+		return errors.New("memory: aliases is empty")
+	}
+
+	ms.mu.Lock()
+	for _, alias := range aliases {
+		delete(ms.PathToURL, alias)
+	}
+	ms.mu.Unlock()
+	return nil
 }
