@@ -92,8 +92,6 @@ func TestGenRandomString(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotEmpty(t, result)
-				// The result length will be different from ShortURLSize due to base64 encoding
-				// We just verify it's not empty and has reasonable length
 				assert.Greater(t, len(result), 0)
 			}
 		})
@@ -103,7 +101,6 @@ func TestGenRandomString(t *testing.T) {
 func TestGenRandomString_Uniqueness(t *testing.T) {
 	service := NewService()
 
-	// Generate multiple random strings and ensure they're unique
 	generated := make(map[string]bool)
 	iterations := 100
 
@@ -111,10 +108,8 @@ func TestGenRandomString_Uniqueness(t *testing.T) {
 		result, err := service.GenRandomString()
 		assert.NoError(t, err)
 		assert.NotEmpty(t, result)
-		// Verify the result has reasonable length (base64 encoded)
 		assert.Greater(t, len(result), 0)
 
-		// Check uniqueness
 		assert.False(t, generated[result], "Generated duplicate string: %s", result)
 		generated[result] = true
 	}
@@ -125,7 +120,6 @@ func TestGenRandomString_Uniqueness(t *testing.T) {
 func TestGenRandomString_ValidCharacters(t *testing.T) {
 	service := NewService()
 
-	// Generate multiple random strings and check they contain only valid base64 URL characters
 	validChars := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 
 	for i := 0; i < 50; i++ {
@@ -148,7 +142,6 @@ func TestGenRandomString_DifferentSizes(t *testing.T) {
 			result, err := service.GenRandomString()
 			assert.NoError(t, err)
 			assert.NotEmpty(t, result)
-			// Verify the result has reasonable length (base64 encoded)
 			assert.Greater(t, len(result), 0)
 		})
 	}

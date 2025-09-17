@@ -92,7 +92,6 @@ func (fs *FileRepository) Get(shortURL string) (string, error) {
 }
 
 func (fs *FileRepository) GetAll(userID, baseURL string) ([]URLOutput, error) {
-	//TODO implement me
 	panic("implement me")
 }
 
@@ -130,7 +129,6 @@ func (fs *FileRepository) StoreBatch(userID, baseURL string, urls []BatchURLInpu
 }
 
 func (fs *FileRepository) DeleteBatch(userID string, aliases []string) error {
-	//TODO implement me
 	panic("implement me")
 }
 
