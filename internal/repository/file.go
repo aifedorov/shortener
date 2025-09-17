@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/aifedorov/shortener/pkg/random"
+	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 

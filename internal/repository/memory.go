@@ -4,10 +4,10 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/aifedorov/shortener/internal/pkg/random"
 	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
-	"github.com/aifedorov/shortener/pkg/random"
 )
 
 type MemoryRepository struct {
@@ -49,7 +49,7 @@ func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 }
 
 func (ms *MemoryRepository) GetAll(userID, baseURL string) ([]URLOutput, error) {
-	ms.mu.RLocker()
+	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
 	res := make([]URLOutput, len(ms.PathToURL))

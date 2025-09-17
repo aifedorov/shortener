@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
@@ -16,7 +17,6 @@ import (
 	"github.com/aifedorov/shortener/internal/http/middleware/compress"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/aifedorov/shortener/pkg/validate"
 )
 
 var (
