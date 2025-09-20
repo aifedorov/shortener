@@ -39,13 +39,16 @@ type Server struct {
 }
 
 func NewServer(cfg *config.Config, repo repository.Repository) *Server {
-	return &Server{
+	s := &Server{
 		router:     chi.NewRouter(),
 		repo:       repo,
 		config:     cfg,
 		urlChecker: validate.NewService(),
 		ctx:        context.Background(),
 	}
+	s.setupMiddleware()
+	s.mountHandlers()
+	return s
 }
 
 func (s *Server) Run() {
@@ -64,6 +67,14 @@ func (s *Server) Run() {
 		}
 	}()
 
+	logger.Log.Info("server: running on", zap.String("address", s.config.RunAddr))
+	lsErr := http.ListenAndServe(s.config.RunAddr, s.router)
+	if lsErr != nil {
+		logger.Log.Fatal("server: failed to run", zap.Error(lsErr))
+	}
+}
+
+func (s *Server) setupMiddleware() {
 	s.router.Use(chimiddleware.AllowContentType(supportedContentTypes...))
 	s.router.Use(compress.GzipMiddleware)
 	s.router.Use(logger.RequestLogger)
@@ -71,14 +82,6 @@ func (s *Server) Run() {
 
 	m := auth.NewMiddleware(s.config.SecretKey)
 	s.router.Use(m.JWTAuth)
-
-	s.mountHandlers()
-
-	logger.Log.Info("server: running on", zap.String("address", s.config.RunAddr))
-	lsErr := http.ListenAndServe(s.config.RunAddr, s.router)
-	if lsErr != nil {
-		logger.Log.Fatal("server: failed to run", zap.Error(lsErr))
-	}
 }
 
 func (s *Server) mountHandlers() {
@@ -93,4 +96,6 @@ func (s *Server) mountHandlers() {
 	s.router.Get("/ping", handlers.NewPingHandler(s.repo))
 	s.router.Get("/api/user/urls", handlers.NewURLsHandler(s.config, s.repo))
 	s.router.Delete("/api/user/urls", handlers.NewDeleteHandler(s.repo))
+
+	s.router.Mount("/debug", chimiddleware.Profiler())
 }

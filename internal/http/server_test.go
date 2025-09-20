@@ -89,7 +89,6 @@ func TestServer_redirect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, tt.path, nil)
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
 			req = req.WithContext(ctx)
@@ -181,7 +180,6 @@ func TestServer_saveURL_TextPlain(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/", strings.NewReader(tt.requestBody))
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
 			req = req.WithContext(ctx)
@@ -282,7 +280,6 @@ func TestServer_saveURL_JSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/shorten", strings.NewReader(tt.requestBody))
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
 			req = req.WithContext(ctx)
@@ -371,7 +368,6 @@ func TestServer_deleteURLs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/user/urls", strings.NewReader(tt.requestBody))
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
 			req = req.WithContext(ctx)
@@ -415,7 +411,6 @@ func TestNewPingHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := NewServer(tt.cfg, repository.NewRepository(context.Background(), tt.cfg))
-			server.mountHandlers()
 
 			req := httptest.NewRequest(http.MethodGet, "/ping", strings.NewReader(""))
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
@@ -492,7 +487,6 @@ func TestServer_getURLs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/user/urls", nil)
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, "user123")
 			req = req.WithContext(ctx)
@@ -682,7 +676,6 @@ func TestServer_saveURL_TextPlain_Conflict(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/", strings.NewReader(tt.requestBody))
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
 			req = req.WithContext(ctx)
@@ -735,7 +728,6 @@ func TestServer_saveURL_JSON_Conflict(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/shorten", strings.NewReader(tt.requestBody))
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
 			req = req.WithContext(ctx)
@@ -788,7 +780,6 @@ func TestServer_saveBatchURLs_Conflict(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/shorten/batch", strings.NewReader(tt.requestBody))
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
 			req = req.WithContext(ctx)
@@ -851,7 +842,6 @@ func TestServer_saveURL_TextPlain_Unauthorized(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/", strings.NewReader(tt.requestBody))
 
 			if !tt.noUserID {
@@ -918,7 +908,6 @@ func TestServer_saveURL_JSON_Unauthorized(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/shorten", strings.NewReader(tt.requestBody))
 
 			if !tt.noUserID {
@@ -979,7 +968,6 @@ func TestServer_getURLs_Unauthorized(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/user/urls", nil)
 
 			if !tt.noUserID {
@@ -1045,7 +1033,6 @@ func TestServer_saveBatchURLs_Unauthorized(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/shorten/batch", strings.NewReader(tt.requestBody))
 
 			if !tt.noUserID {
@@ -1112,7 +1099,6 @@ func TestServer_deleteURLs_Unauthorized(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/user/urls", strings.NewReader(tt.requestBody))
 
 			if !tt.noUserID {
@@ -1265,7 +1251,6 @@ func TestServer_getURLs_NoContent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/user/urls", nil)
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, "user123")
 			req = req.WithContext(ctx)
@@ -1385,7 +1370,6 @@ func TestServer_saveBatchURLs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.server.mountHandlers()
 			req := httptest.NewRequest(tt.method, "/api/shorten/batch", strings.NewReader(tt.requestBody))
 			ctx := context.WithValue(req.Context(), auth.UserIDKey, uuid.NewString())
 			req = req.WithContext(ctx)
