@@ -1,16 +1,22 @@
 package compress
 
 import (
+	"compress/gzip"
 	"errors"
 	"io"
 	"net/http"
 	"slices"
-
-	"compress/gzip"
-	"go.uber.org/zap"
+	"sync"
 
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
+	"go.uber.org/zap"
 )
+
+var writerPool = sync.Pool{
+	New: func() interface{} {
+		return gzip.NewWriter(nil)
+	},
+}
 
 type compressWriter struct {
 	w  http.ResponseWriter
@@ -18,10 +24,29 @@ type compressWriter struct {
 }
 
 func newCompressWriter(w http.ResponseWriter) *compressWriter {
+	zw := writerPool.Get().(*gzip.Writer)
+	zw.Reset(w)
 	return &compressWriter{
 		w:  w,
-		zw: gzip.NewWriter(w),
+		zw: zw,
 	}
+}
+
+type compressReader struct {
+	r  io.ReadCloser
+	zr *gzip.Reader
+}
+
+func newCompressReader(r io.ReadCloser) (*compressReader, error) {
+	zr, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return &compressReader{
+		r:  r,
+		zr: zr,
+	}, nil
 }
 
 func (c *compressWriter) Header() http.Header {
@@ -40,24 +65,10 @@ func (c *compressWriter) WriteHeader(statusCode int) {
 }
 
 func (c *compressWriter) Close() error {
-	return c.zw.Close()
-}
-
-type compressReader struct {
-	r  io.ReadCloser
-	zr *gzip.Reader
-}
-
-func newCompressReader(r io.ReadCloser) (*compressReader, error) {
-	zr, err := gzip.NewReader(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return &compressReader{
-		r:  r,
-		zr: zr,
-	}, nil
+	err := c.zw.Close()
+	c.zw.Reset(io.Discard)
+	writerPool.Put(c.zw)
+	return err
 }
 
 func (c *compressReader) Read(p []byte) (n int, err error) {

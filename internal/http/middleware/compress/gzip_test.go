@@ -14,8 +14,8 @@ import (
 
 func TestGzipCompression(t *testing.T) {
 	handler := GzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("Hello World"))
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Hello World"))
 	}))
 
 	srv := httptest.NewServer(handler)
