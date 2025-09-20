@@ -79,6 +79,8 @@ func (s *Server) Run() {
 	if lsErr != nil {
 		logger.Log.Fatal("server: failed to run", zap.Error(lsErr))
 	}
+
+	s.router.Mount("/debug", chimiddleware.Profiler())
 }
 
 func (s *Server) mountHandlers() {
