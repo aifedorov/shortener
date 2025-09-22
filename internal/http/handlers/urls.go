@@ -2,9 +2,10 @@ package handlers
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"go.uber.org/zap"
-	"net/http"
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/repository"

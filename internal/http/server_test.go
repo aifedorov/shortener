@@ -563,7 +563,7 @@ func (m *MockRepository) Get(shortURL string) (string, error) {
 	return "", repository.ErrShortURLNotFound
 }
 
-func (m *MockRepository) GetAll(userID, baseURL string) ([]repository.URLOutput, error) {
+func (m *MockRepository) GetAll(_, baseURL string) ([]repository.URLOutput, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	res := make([]repository.URLOutput, len(m.PathToURL))
@@ -578,7 +578,7 @@ func (m *MockRepository) GetAll(userID, baseURL string) ([]repository.URLOutput,
 	return res, nil
 }
 
-func (m *MockRepository) Store(userID, baseURL, targetURL string) (string, error) {
+func (m *MockRepository) Store(_, baseURL, targetURL string) (string, error) {
 	if m.conflictURL != "" && targetURL == m.conflictURL {
 		alias := "existing123"
 		shortURL := baseURL + "/" + alias
@@ -598,7 +598,7 @@ func (m *MockRepository) Store(userID, baseURL, targetURL string) (string, error
 	return shortURL, nil
 }
 
-func (m *MockRepository) StoreBatch(userID, baseURL string, urls []repository.BatchURLInput) ([]repository.BatchURLOutput, error) {
+func (m *MockRepository) StoreBatch(_, baseURL string, urls []repository.BatchURLInput) ([]repository.BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
@@ -630,7 +630,7 @@ func (m *MockRepository) StoreBatch(userID, baseURL string, urls []repository.Ba
 	return res, nil
 }
 
-func (m *MockRepository) DeleteBatch(userID string, aliases []string) error {
+func (m *MockRepository) DeleteBatch(_ string, aliases []string) error {
 	if len(aliases) == 0 {
 		return errors.New("aliases is empty")
 	}
@@ -1157,7 +1157,7 @@ func (m *MockRepositoryForNoContent) Get(shortURL string) (string, error) {
 	return "", repository.ErrShortURLNotFound
 }
 
-func (m *MockRepositoryForNoContent) GetAll(userID, baseURL string) ([]repository.URLOutput, error) {
+func (m *MockRepositoryForNoContent) GetAll(_, baseURL string) ([]repository.URLOutput, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -1177,7 +1177,7 @@ func (m *MockRepositoryForNoContent) GetAll(userID, baseURL string) ([]repositor
 	return res, nil
 }
 
-func (m *MockRepositoryForNoContent) Store(userID, baseURL, targetURL string) (string, error) {
+func (m *MockRepositoryForNoContent) Store(_, baseURL, targetURL string) (string, error) {
 	alias, err := m.Rand.GenRandomString()
 	if err != nil {
 		return "", err
@@ -1191,7 +1191,7 @@ func (m *MockRepositoryForNoContent) Store(userID, baseURL, targetURL string) (s
 	return shortURL, nil
 }
 
-func (m *MockRepositoryForNoContent) StoreBatch(userID, baseURL string, urls []repository.BatchURLInput) ([]repository.BatchURLOutput, error) {
+func (m *MockRepositoryForNoContent) StoreBatch(_, baseURL string, urls []repository.BatchURLInput) ([]repository.BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
@@ -1217,7 +1217,7 @@ func (m *MockRepositoryForNoContent) StoreBatch(userID, baseURL string, urls []r
 	return res, nil
 }
 
-func (m *MockRepositoryForNoContent) DeleteBatch(userID string, aliases []string) error {
+func (m *MockRepositoryForNoContent) DeleteBatch(_ string, aliases []string) error {
 	if len(aliases) == 0 {
 		return errors.New("aliases is empty")
 	}

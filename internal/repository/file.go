@@ -91,11 +91,11 @@ func (fs *FileRepository) Get(shortURL string) (string, error) {
 	return "", ErrShortURLNotFound
 }
 
-func (fs *FileRepository) GetAll(userID, baseURL string) ([]URLOutput, error) {
+func (fs *FileRepository) GetAll(_, _ string) ([]URLOutput, error) {
 	panic("implement me")
 }
 
-func (fs *FileRepository) Store(userID, baseURL, targetURL string) (string, error) {
+func (fs *FileRepository) Store(_, baseURL, targetURL string) (string, error) {
 	alias, err := fs.rand.GenRandomString()
 	if err != nil {
 		logger.Log.Error("fileStorage: generate random string failed", zap.Error(err))
@@ -113,7 +113,7 @@ func (fs *FileRepository) Store(userID, baseURL, targetURL string) (string, erro
 	return shortURL, nil
 }
 
-func (fs *FileRepository) StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
+func (fs *FileRepository) StoreBatch(_, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
@@ -128,7 +128,7 @@ func (fs *FileRepository) StoreBatch(userID, baseURL string, urls []BatchURLInpu
 	return res, nil
 }
 
-func (fs *FileRepository) DeleteBatch(userID string, aliases []string) error {
+func (fs *FileRepository) DeleteBatch(_ string, _ []string) error {
 	panic("implement me")
 }
 

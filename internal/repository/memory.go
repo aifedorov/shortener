@@ -48,7 +48,7 @@ func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 	return targetURL, nil
 }
 
-func (ms *MemoryRepository) GetAll(userID, baseURL string) ([]URLOutput, error) {
+func (ms *MemoryRepository) GetAll(_, baseURL string) ([]URLOutput, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
@@ -64,7 +64,7 @@ func (ms *MemoryRepository) GetAll(userID, baseURL string) ([]URLOutput, error) 
 	return res, nil
 }
 
-func (ms *MemoryRepository) Store(userID, baseURL, targetURL string) (string, error) {
+func (ms *MemoryRepository) Store(_, baseURL, targetURL string) (string, error) {
 	alias, err := ms.Rand.GenRandomString()
 	if err != nil {
 		logger.Log.Debug("memory: generation of random string failed", zap.Error(err))
@@ -86,7 +86,7 @@ func (ms *MemoryRepository) Store(userID, baseURL, targetURL string) (string, er
 	return resURL, nil
 }
 
-func (ms *MemoryRepository) StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
+func (ms *MemoryRepository) StoreBatch(_, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
@@ -116,7 +116,7 @@ func (ms *MemoryRepository) StoreBatch(userID, baseURL string, urls []BatchURLIn
 	return res, nil
 }
 
-func (ms *MemoryRepository) DeleteBatch(userID string, aliases []string) error {
+func (ms *MemoryRepository) DeleteBatch(_ string, aliases []string) error {
 	if len(aliases) == 0 {
 		return errors.New("memory: aliases is empty")
 	}
