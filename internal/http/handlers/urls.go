@@ -12,8 +12,11 @@ import (
 )
 
 // URLResponse represents a URL entry in the user's URL list response.
+// Used for returning user's URLs in the /api/user/urls endpoint.
 type URLResponse struct {
-	ShortURL    string `json:"short_url"`
+	// ShortURL is the generated short URL.
+	ShortURL string `json:"short_url"`
+	// OriginalURL is the original URL that was shortened.
 	OriginalURL string `json:"original_url"`
 }
 

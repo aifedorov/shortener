@@ -32,15 +32,22 @@ var supportedContentTypes = []string{
 }
 
 // Server represents the HTTP server for the URL shortener application.
+// It manages HTTP routes, middleware, and coordinates between handlers and the repository.
 type Server struct {
-	router     *chi.Mux
-	config     *config.Config
-	repo       repository.Repository
+	// router is the Chi router instance for handling HTTP routes.
+	router *chi.Mux
+	// config holds the application configuration settings.
+	config *config.Config
+	// repo is the repository interface for data persistence.
+	repo repository.Repository
+	// urlChecker is used for validating URLs before processing.
 	urlChecker validate.URLChecker
-	ctx        context.Context
+	// ctx is the background context for the server.
+	ctx context.Context
 }
 
 // NewServer creates a new HTTP server instance with the provided configuration and repository.
+// The server is initialized with Chi router, URL validation service, and background context.
 func NewServer(cfg *config.Config, repo repository.Repository) *Server {
 	return &Server{
 		router:     chi.NewRouter(),

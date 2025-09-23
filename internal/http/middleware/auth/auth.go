@@ -14,30 +14,42 @@ import (
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
+// ContextKey represents a type for context keys used in authentication.
 type ContextKey string
 
+// UserIDKey is the context key used to store the user ID in request context.
 const UserIDKey ContextKey = "user_id"
 
 const (
-	tokenExp  = time.Hour * 3
+	// tokenExp defines the JWT token expiration time.
+	tokenExp = time.Hour * 3
+	// tokenName is the name of the JWT cookie.
 	tokenName = "JWT"
 )
 
+// Claims represents the JWT claims structure for user authentication.
 type Claims struct {
 	jwt.RegisteredClaims
+	// UserID is the unique identifier for the authenticated user.
 	UserID string
 }
 
+// Middleware provides JWT-based authentication middleware for HTTP handlers.
 type Middleware struct {
+	// secretKey is used for signing and validating JWT tokens.
 	secretKey string
 }
 
+// NewMiddleware creates a new authentication middleware instance.
+// The secretKey is used for JWT token signing and validation.
 func NewMiddleware(secretKey string) *Middleware {
 	return &Middleware{
 		secretKey: secretKey,
 	}
 }
 
+// JWTAuth provides JWT-based authentication middleware.
+// It extracts user ID from JWT cookies and creates new cookies for unauthenticated users.
 func (m *Middleware) JWTAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie(tokenName)

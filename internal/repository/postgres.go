@@ -15,22 +15,38 @@ import (
 	"go.uber.org/zap"
 )
 
+// PostgresRepository provides a PostgreSQL-based implementation of the Repository interface.
+// It stores URL mappings in a PostgreSQL database with full ACID compliance.
 type PostgresRepository struct {
-	ctx  context.Context
-	db   *sql.DB
-	dsn  string
+	// ctx is the context for database operations.
+	ctx context.Context
+	// db is the PostgreSQL database connection.
+	db *sql.DB
+	// dsn is the PostgreSQL connection string.
+	dsn string
+	// rand is used for generating random short URL identifiers.
 	rand random.Randomizer
 }
 
+// Model represents a URL mapping model for database operations.
+// It contains all fields needed for storing and retrieving URL mappings.
 type Model struct {
-	userID      string
-	cid         string
-	alias       string
+	// userID is the ID of the user who created the URL mapping.
+	userID string
+	// cid is the correlation ID for batch operations.
+	cid string
+	// alias is the short URL path/alias.
+	alias string
+	// originalURL is the original URL that was shortened.
 	originalURL string
-	baseURL     string
-	isDeleted   bool
+	// baseURL is the base URL used for generating short URLs.
+	baseURL string
+	// isDeleted indicates if the URL has been marked as deleted.
+	isDeleted bool
 }
 
+// NewPosgresRepository creates a new PostgreSQL repository instance.
+// The repository will use the provided context and DSN for database operations.
 func NewPosgresRepository(ctx context.Context, dsn string) *PostgresRepository {
 	return &PostgresRepository{
 		ctx:  ctx,

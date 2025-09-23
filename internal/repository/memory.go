@@ -10,12 +10,19 @@ import (
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
+// MemoryRepository provides an in-memory implementation of the Repository interface.
+// It stores URL mappings in a map with thread-safe access using read-write mutex.
 type MemoryRepository struct {
+	// PathToURL maps short URL paths to original URLs.
 	PathToURL map[string]string
-	Rand      random.Randomizer
-	mu        sync.RWMutex
+	// Rand is used for generating random short URL identifiers.
+	Rand random.Randomizer
+	// mu provides thread-safe access to the PathToURL map.
+	mu sync.RWMutex
 }
 
+// NewMemoryRepository creates a new in-memory repository instance.
+// The repository is ready to use immediately after creation.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
 		PathToURL: make(map[string]string),

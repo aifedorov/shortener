@@ -19,19 +19,32 @@ const (
 	FileOpenFlagsRead    = os.O_RDONLY
 )
 
+// URLMapping represents a single URL mapping stored in the file repository.
+// It contains the user ID, short URL, and original URL for persistence.
 type URLMapping struct {
-	ID          string `json:"id"`
-	ShortURL    string `json:"short_url"`
+	// ID is the user ID who created the URL mapping.
+	ID string `json:"id"`
+	// ShortURL is the generated short URL path.
+	ShortURL string `json:"short_url"`
+	// OriginalURL is the original URL that was shortened.
 	OriginalURL string `json:"original_url"`
 }
 
+// FileRepository provides a file-based implementation of the Repository interface.
+// It stores URL mappings in a JSON file with append-only writes for persistence.
 type FileRepository struct {
-	fname     string
-	file      *os.File
+	// fname is the path to the storage file.
+	fname string
+	// file is the open file handle for writing.
+	file *os.File
+	// pathToURL stores all URL mappings in memory for fast access.
 	pathToURL []URLMapping
-	rand      random.Randomizer
+	// rand is used for generating random short URL identifiers.
+	rand random.Randomizer
 }
 
+// NewFileRepository creates a new file-based repository instance.
+// The repository will use the specified file path for persistence.
 func NewFileRepository(filePath string) *FileRepository {
 	return &FileRepository{
 		fname:     filePath,

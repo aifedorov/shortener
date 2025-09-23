@@ -11,16 +11,23 @@ import (
 const ShortURLDefaultSize = 8
 
 // Randomizer defines the interface for generating random strings.
+// It provides a method to generate cryptographically secure random strings
+// suitable for use as short URL identifiers.
 type Randomizer interface {
+	// GenRandomString generates a random string of the configured length.
+	// Returns an error if the generation fails.
 	GenRandomString() (string, error)
 }
 
 // Service provides random string generation functionality for short URLs.
+// It implements the Randomizer interface using cryptographic random number generation.
 type Service struct {
+	// ShortURLSize specifies the length of generated random strings.
 	ShortURLSize int
 }
 
 // NewService creates a new random string service with the default short URL size.
+// The service is ready to use immediately after creation.
 func NewService() *Service {
 	return &Service{
 		ShortURLSize: ShortURLDefaultSize,
