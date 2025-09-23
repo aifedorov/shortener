@@ -12,6 +12,7 @@ import (
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 )
 
+// File repository constants
 const (
 	// FilePermissionsWrite defines the file permissions for write operations.
 	FilePermissionsWrite = 0644

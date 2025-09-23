@@ -27,6 +27,7 @@ func (e *ConflictError) Error() string {
 	return e.err.Error()
 }
 
+// Repository error definitions
 var (
 	// ErrShortURLNotFound is returned when a requested short URL does not exist in the repository.
 	ErrShortURLNotFound = errors.New("short url not found")

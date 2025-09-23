@@ -19,6 +19,7 @@ import (
 	"github.com/aifedorov/shortener/internal/repository"
 )
 
+// Server error definitions
 var (
 	// ErrShortURLMissing is returned when a request is missing the required short URL parameter.
 	ErrShortURLMissing = errors.New("short URL is missing")
