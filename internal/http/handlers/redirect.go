@@ -11,6 +11,9 @@ import (
 	"github.com/aifedorov/shortener/internal/repository"
 )
 
+// NewRedirectHandler creates a new HTTP handler for redirecting short URLs to their original URLs.
+// This handler is available to all users (no authentication required).
+// It returns a handler function that performs HTTP redirects or returns appropriate error responses.
 func NewRedirectHandler(repo repository.Repository) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		shortURL := chi.URLParam(r, "shortURL")

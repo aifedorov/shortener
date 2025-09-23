@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+// Config holds the application configuration settings.
 type Config struct {
 	RunAddr         string
 	BaseURL         string
@@ -15,10 +16,13 @@ type Config struct {
 	SecretKey       string
 }
 
+// NewConfig creates a new Config instance with default values.
 func NewConfig() *Config {
 	return &Config{}
 }
 
+// ParseFlags parses command line flags and environment variables to populate the configuration.
+// Command line flags take precedence over environment variables.
 func (cfg *Config) ParseFlags() {
 	flag.StringVar(&cfg.RunAddr, "a", ":8080", "address and port to run server")
 	flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080", "address and port for short url")

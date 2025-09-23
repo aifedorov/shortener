@@ -20,6 +20,7 @@ import (
 )
 
 var (
+	// ErrShortURLMissing is returned when a request is missing the required short URL parameter.
 	ErrShortURLMissing = errors.New("short URL is missing")
 )
 
@@ -30,6 +31,7 @@ var supportedContentTypes = []string{
 	"application/x-gzip",
 }
 
+// Server represents the HTTP server for the URL shortener application.
 type Server struct {
 	router     *chi.Mux
 	config     *config.Config
@@ -38,6 +40,7 @@ type Server struct {
 	ctx        context.Context
 }
 
+// NewServer creates a new HTTP server instance with the provided configuration and repository.
 func NewServer(cfg *config.Config, repo repository.Repository) *Server {
 	return &Server{
 		router:     chi.NewRouter(),
@@ -48,6 +51,8 @@ func NewServer(cfg *config.Config, repo repository.Repository) *Server {
 	}
 }
 
+// Run starts the HTTP server and begins listening for requests.
+// It initializes the logger, repository, middleware, and mounts all route handlers.
 func (s *Server) Run() {
 	if err := logger.Initialize(s.config.LogLevel); err != nil {
 		log.Fatal(err)
@@ -83,6 +88,7 @@ func (s *Server) Run() {
 	s.router.Mount("/debug", chimiddleware.Profiler())
 }
 
+// mountHandlers registers all HTTP route handlers with the router.
 func (s *Server) mountHandlers() {
 	s.router.Post("/", handlers.NewSavePlainTextHandler(s.config, s.repo, s.urlChecker))
 	s.router.Post("/api/shorten", handlers.NewSaveJSONHandler(s.config, s.repo, s.urlChecker))

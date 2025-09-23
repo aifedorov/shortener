@@ -9,6 +9,9 @@ import (
 	"github.com/aifedorov/shortener/internal/repository"
 )
 
+// NewDeleteHandler creates a new HTTP handler for batch URL deletion operations.
+// This handler requires user authentication. If the user is not authenticated, a cookie will be created for them.
+// It accepts a JSON array of short URL aliases and marks them as deleted asynchronously.
 func NewDeleteHandler(repo repository.Repository) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")

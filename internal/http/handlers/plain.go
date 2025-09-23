@@ -12,6 +12,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// NewSavePlainTextHandler creates a new HTTP handler for single URL shortening operations via plain text.
+// This handler requires user authentication. If the user is not authenticated, a cookie will be created for them.
+// It accepts a plain text URL in the request body and returns the shortened URL as plain text.
 func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "text/plain")

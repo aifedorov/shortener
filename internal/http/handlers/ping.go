@@ -10,6 +10,9 @@ import (
 	"github.com/aifedorov/shortener/internal/repository"
 )
 
+// NewPingHandler creates a new HTTP handler for health check operations.
+// This handler is available to all users (no authentication required).
+// It tests the connection to the underlying storage and returns appropriate status codes.
 func NewPingHandler(repo repository.Repository) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		err := repo.Ping()
