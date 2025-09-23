@@ -30,18 +30,22 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
+// Run initializes the memory repository.
 func (ms *MemoryRepository) Run() error {
 	return nil
 }
 
+// Ping checks the health of the memory repository connection.
 func (ms *MemoryRepository) Ping() error {
 	return nil
 }
 
+// Close closes the memory repository connection and performs cleanup.
 func (ms *MemoryRepository) Close() error {
 	return nil
 }
 
+// Get retrieves the original URL for a given short URL from memory storage.
 func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -55,6 +59,7 @@ func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 	return targetURL, nil
 }
 
+// GetAll retrieves all URLs belonging to a specific user from memory storage.
 func (ms *MemoryRepository) GetAll(_, baseURL string) ([]URLOutput, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -71,6 +76,7 @@ func (ms *MemoryRepository) GetAll(_, baseURL string) ([]URLOutput, error) {
 	return res, nil
 }
 
+// Store saves a new URL to memory storage and returns the generated short URL.
 func (ms *MemoryRepository) Store(_, baseURL, targetURL string) (string, error) {
 	alias, err := ms.Rand.GenRandomString()
 	if err != nil {
@@ -93,6 +99,7 @@ func (ms *MemoryRepository) Store(_, baseURL, targetURL string) (string, error) 
 	return resURL, nil
 }
 
+// StoreBatch saves multiple URLs to memory storage in a single operation.
 func (ms *MemoryRepository) StoreBatch(_, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
@@ -123,6 +130,7 @@ func (ms *MemoryRepository) StoreBatch(_, baseURL string, urls []BatchURLInput) 
 	return res, nil
 }
 
+// DeleteBatch marks multiple URLs as deleted for a specific user in memory storage.
 func (ms *MemoryRepository) DeleteBatch(_ string, aliases []string) error {
 	if len(aliases) == 0 {
 		return errors.New("memory: aliases is empty")

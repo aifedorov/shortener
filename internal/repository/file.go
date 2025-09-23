@@ -13,10 +13,14 @@ import (
 )
 
 const (
+	// FilePermissionsWrite defines the file permissions for write operations.
 	FilePermissionsWrite = 0644
-	FilePermissionsRead  = 0444
-	FileOpenFlagsWrite   = os.O_APPEND | os.O_CREATE | os.O_WRONLY
-	FileOpenFlagsRead    = os.O_RDONLY
+	// FilePermissionsRead defines the file permissions for read operations.
+	FilePermissionsRead = 0444
+	// FileOpenFlagsWrite defines the flags for opening files in write mode.
+	FileOpenFlagsWrite = os.O_APPEND | os.O_CREATE | os.O_WRONLY
+	// FileOpenFlagsRead defines the flags for opening files in read mode.
+	FileOpenFlagsRead = os.O_RDONLY
 )
 
 // URLMapping represents a single URL mapping stored in the file repository.
@@ -53,6 +57,7 @@ func NewFileRepository(filePath string) *FileRepository {
 	}
 }
 
+// Run initializes the file repository by opening the storage file.
 func (fs *FileRepository) Run() error {
 	file, err := os.OpenFile(fs.fname, FileOpenFlagsWrite, FilePermissionsWrite)
 	fs.file = file
@@ -63,10 +68,12 @@ func (fs *FileRepository) Run() error {
 	return nil
 }
 
+// Ping checks the health of the file repository connection.
 func (fs *FileRepository) Ping() error {
 	return nil
 }
 
+// Close closes the file repository connection and performs cleanup.
 func (fs *FileRepository) Close() error {
 	err := fs.file.Close()
 	if err != nil {
@@ -75,6 +82,7 @@ func (fs *FileRepository) Close() error {
 	return nil
 }
 
+// Get retrieves the original URL for a given short URL from the file storage.
 func (fs *FileRepository) Get(shortURL string) (string, error) {
 	file, err := os.OpenFile(fs.fname, FileOpenFlagsRead, FilePermissionsRead)
 	if err != nil {
@@ -104,10 +112,12 @@ func (fs *FileRepository) Get(shortURL string) (string, error) {
 	return "", ErrShortURLNotFound
 }
 
+// GetAll retrieves all URLs belonging to a specific user from the file storage.
 func (fs *FileRepository) GetAll(_, _ string) ([]URLOutput, error) {
 	panic("implement me")
 }
 
+// Store saves a new URL to the file storage and returns the generated short URL.
 func (fs *FileRepository) Store(_, baseURL, targetURL string) (string, error) {
 	alias, err := fs.rand.GenRandomString()
 	if err != nil {
@@ -126,6 +136,7 @@ func (fs *FileRepository) Store(_, baseURL, targetURL string) (string, error) {
 	return shortURL, nil
 }
 
+// StoreBatch saves multiple URLs to the file storage in a single operation.
 func (fs *FileRepository) StoreBatch(_, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
@@ -141,10 +152,12 @@ func (fs *FileRepository) StoreBatch(_, baseURL string, urls []BatchURLInput) ([
 	return res, nil
 }
 
+// DeleteBatch marks multiple URLs as deleted for a specific user.
 func (fs *FileRepository) DeleteBatch(_ string, _ []string) error {
 	panic("implement me")
 }
 
+// addNewURL adds a new URL mapping to the file storage.
 func (fs *FileRepository) addNewURL(shortURL string, originalURL string) error {
 	logger.Log.Debug("fileStorage: storing new url", zap.String("short_url", shortURL), zap.String("original_url", originalURL))
 	record := URLMapping{
@@ -179,6 +192,7 @@ func (fs *FileRepository) addNewURL(shortURL string, originalURL string) error {
 	return nil
 }
 
+// addNewURLs adds multiple URL mappings to the file storage in batch.
 func (fs *FileRepository) addNewURLs(baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	res := make([]BatchURLOutput, len(urls))
 	writer := bufio.NewWriter(fs.file)

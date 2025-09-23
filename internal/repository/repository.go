@@ -22,6 +22,7 @@ func NewConflictError(shortURL string, err error) error {
 	}
 }
 
+// Error returns the error message from the underlying error.
 func (e *ConflictError) Error() string {
 	return e.err.Error()
 }

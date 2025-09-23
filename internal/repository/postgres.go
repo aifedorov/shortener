@@ -55,6 +55,7 @@ func NewPosgresRepository(ctx context.Context, dsn string) *PostgresRepository {
 	}
 }
 
+// Run initializes the PostgreSQL repository by opening the database connection and creating tables.
 func (p *PostgresRepository) Run() error {
 	logger.Log.Debug("postgres: opening db", zap.String("dsn", p.dsn))
 	db, err := sql.Open("pgx", p.dsn)
@@ -74,8 +75,10 @@ func (p *PostgresRepository) Run() error {
 	return nil
 }
 
+// defaultDBTimeout defines the default timeout for database operations.
 const defaultDBTimeout = 3 * time.Second
 
+// Ping checks the health of the PostgreSQL database connection.
 func (p *PostgresRepository) Ping() error {
 	ctx, cancel := context.WithTimeout(p.ctx, defaultDBTimeout)
 	defer cancel()
@@ -89,11 +92,13 @@ func (p *PostgresRepository) Ping() error {
 	return nil
 }
 
+// Close closes the PostgreSQL repository connection and performs cleanup.
 func (p *PostgresRepository) Close() error {
 	logger.Log.Debug("postgres: closing repository")
 	return p.db.Close()
 }
 
+// Get retrieves the original URL for a given short URL from the PostgreSQL database.
 func (p *PostgresRepository) Get(shortURL string) (string, error) {
 	oURL, err := p.fetchOriginalURL(shortURL)
 	if errors.Is(err, ErrShortURLNotFound) {
@@ -108,6 +113,7 @@ func (p *PostgresRepository) Get(shortURL string) (string, error) {
 	return oURL, nil
 }
 
+// GetAll retrieves all URLs belonging to a specific user from the PostgreSQL database.
 func (p *PostgresRepository) GetAll(userID, baseURL string) ([]URLOutput, error) {
 	res, err := p.fetchURs(userID, baseURL)
 	if errors.Is(err, ErrUserHasNoData) {
@@ -119,14 +125,17 @@ func (p *PostgresRepository) GetAll(userID, baseURL string) ([]URLOutput, error)
 	return res, nil
 }
 
+// Store saves a new URL to the PostgreSQL database and returns the generated short URL.
 func (p *PostgresRepository) Store(userID, baseURL, targetURL string) (string, error) {
 	return p.store(userID, baseURL, targetURL)
 }
 
+// StoreBatch saves multiple URLs to the PostgreSQL database in a single operation.
 func (p *PostgresRepository) StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	return p.storeBatch(userID, baseURL, urls)
 }
 
+// DeleteBatch marks multiple URLs as deleted for a specific user in the PostgreSQL database.
 func (p *PostgresRepository) DeleteBatch(userID string, aliases []string) error {
 	return p.deleteBatch(userID, aliases)
 }

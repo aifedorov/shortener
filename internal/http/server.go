@@ -24,6 +24,7 @@ var (
 	ErrShortURLMissing = errors.New("short URL is missing")
 )
 
+// supportedContentTypes defines the content types that the server accepts.
 var supportedContentTypes = []string{
 	"application/json",
 	"text/plain",
