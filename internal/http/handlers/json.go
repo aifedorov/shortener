@@ -6,10 +6,13 @@ import (
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
+	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/aifedorov/shortener/pkg/validate"
 )
 
+// NewSaveJSONHandler creates a new HTTP handler for single URL shortening operations via JSON.
+// This handler requires user authentication. If the user is not authenticated, a cookie will be created for them.
+// It accepts a JSON request with a URL and returns a JSON response with the shortened URL.
 func NewSaveJSONHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")

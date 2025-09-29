@@ -3,14 +3,15 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
+
+	"github.com/aifedorov/shortener/internal/pkg/validate"
+	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/aifedorov/shortener/pkg/validate"
 )
 
 func decodeRequest(r *http.Request) (RequestBody, error) {

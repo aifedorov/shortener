@@ -14,8 +14,8 @@ import (
 
 func TestGzipCompression(t *testing.T) {
 	handler := GzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("Hello World"))
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Hello World"))
 	}))
 
 	srv := httptest.NewServer(handler)
@@ -70,4 +70,68 @@ func TestGzipCompression(t *testing.T) {
 
 		require.Equal(t, responseBody, string(b))
 	})
+}
+
+func BenchmarkGzipMiddleware(b *testing.B) {
+	payload := []byte(`{"url":"https://example.com"}`)
+
+	handler := GzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(payload)
+	}))
+
+	b.Run("with_compression", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			req := httptest.NewRequest("GET", "/", nil)
+			req.Header.Set("Accept-Encoding", "gzip")
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+		}
+	})
+
+	b.Run("without_compression", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			req := httptest.NewRequest("GET", "/", nil)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+		}
+	})
+}
+
+func BenchmarkCompressWriter(b *testing.B) {
+	data := []byte(`{"short_url":"abc","original_url":"https://example.com"}`)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w := httptest.NewRecorder()
+		cw := newCompressWriter(w)
+		cw.Write(data)
+		cw.Close()
+	}
+}
+
+func BenchmarkCompressReader(b *testing.B) {
+	data := []byte(`{"urls":[{"short_url":"abc123","original_url":"https://example.com"}]`)
+
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	zw.Write(data)
+	zw.Close()
+
+	compressedData := buf.Bytes()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		reader := bytes.NewReader(compressedData)
+		cr, err := newCompressReader(io.NopCloser(reader))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		_, err = io.ReadAll(cr)
+		if err != nil {
+			b.Fatal(err)
+		}
+		cr.Close()
+	}
 }

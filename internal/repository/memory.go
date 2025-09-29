@@ -4,18 +4,25 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/aifedorov/shortener/internal/pkg/random"
 	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
-	"github.com/aifedorov/shortener/pkg/random"
 )
 
+// MemoryRepository provides an in-memory implementation of the Repository interface.
+// It stores URL mappings in a map with thread-safe access using read-write mutex.
 type MemoryRepository struct {
+	// PathToURL maps short URL paths to original URLs.
 	PathToURL map[string]string
-	Rand      random.Randomizer
-	mu        sync.RWMutex
+	// Rand is used for generating random short URL identifiers.
+	Rand random.Randomizer
+	// mu provides thread-safe access to the PathToURL map.
+	mu sync.RWMutex
 }
 
+// NewMemoryRepository creates a new in-memory repository instance.
+// The repository is ready to use immediately after creation.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
 		PathToURL: make(map[string]string),
@@ -23,18 +30,22 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
+// Run initializes the memory repository.
 func (ms *MemoryRepository) Run() error {
 	return nil
 }
 
+// Ping checks the health of the memory repository connection.
 func (ms *MemoryRepository) Ping() error {
 	return nil
 }
 
+// Close closes the memory repository connection and performs cleanup.
 func (ms *MemoryRepository) Close() error {
 	return nil
 }
 
+// Get retrieves the original URL for a given short URL from memory storage.
 func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -48,8 +59,9 @@ func (ms *MemoryRepository) Get(shortURL string) (string, error) {
 	return targetURL, nil
 }
 
-func (ms *MemoryRepository) GetAll(userID, baseURL string) ([]URLOutput, error) {
-	ms.mu.RLocker()
+// GetAll retrieves all URLs belonging to a specific user from memory storage.
+func (ms *MemoryRepository) GetAll(_, baseURL string) ([]URLOutput, error) {
+	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
 	res := make([]URLOutput, len(ms.PathToURL))
@@ -64,7 +76,8 @@ func (ms *MemoryRepository) GetAll(userID, baseURL string) ([]URLOutput, error) 
 	return res, nil
 }
 
-func (ms *MemoryRepository) Store(userID, baseURL, targetURL string) (string, error) {
+// Store saves a new URL to memory storage and returns the generated short URL.
+func (ms *MemoryRepository) Store(_, baseURL, targetURL string) (string, error) {
 	alias, err := ms.Rand.GenRandomString()
 	if err != nil {
 		logger.Log.Debug("memory: generation of random string failed", zap.Error(err))
@@ -86,7 +99,8 @@ func (ms *MemoryRepository) Store(userID, baseURL, targetURL string) (string, er
 	return resURL, nil
 }
 
-func (ms *MemoryRepository) StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
+// StoreBatch saves multiple URLs to memory storage in a single operation.
+func (ms *MemoryRepository) StoreBatch(_, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error) {
 	if len(urls) == 0 {
 		return nil, nil
 	}
@@ -116,7 +130,8 @@ func (ms *MemoryRepository) StoreBatch(userID, baseURL string, urls []BatchURLIn
 	return res, nil
 }
 
-func (ms *MemoryRepository) DeleteBatch(userID string, aliases []string) error {
+// DeleteBatch marks multiple URLs as deleted for a specific user in memory storage.
+func (ms *MemoryRepository) DeleteBatch(_ string, aliases []string) error {
 	if len(aliases) == 0 {
 		return errors.New("memory: aliases is empty")
 	}

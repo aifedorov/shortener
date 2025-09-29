@@ -2,19 +2,27 @@ package handlers
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"go.uber.org/zap"
-	"net/http"
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/repository"
 )
 
+// URLResponse represents a URL entry in the user's URL list response.
+// Used for returning user's URLs in the /api/user/urls endpoint.
 type URLResponse struct {
-	ShortURL    string `json:"short_url"`
+	// ShortURL is the generated short URL.
+	ShortURL string `json:"short_url"`
+	// OriginalURL is the original URL that was shortened.
 	OriginalURL string `json:"original_url"`
 }
 
+// NewURLsHandler creates a new HTTP handler for retrieving all URLs belonging to a user.
+// This handler requires user authentication. If the user is not authenticated, a cookie will be created for them.
+// It returns a handler function that responds with a JSON array of user's URLs.
 func NewURLsHandler(cfg *config.Config, repo repository.Repository) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
@@ -16,13 +17,15 @@ import (
 	"github.com/aifedorov/shortener/internal/http/middleware/compress"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/aifedorov/shortener/pkg/validate"
 )
 
+// Server error definitions
 var (
+	// ErrShortURLMissing is returned when a request is missing the required short URL parameter.
 	ErrShortURLMissing = errors.New("short URL is missing")
 )
 
+// supportedContentTypes defines the content types that the server accepts.
 var supportedContentTypes = []string{
 	"application/json",
 	"text/plain",
@@ -30,14 +33,23 @@ var supportedContentTypes = []string{
 	"application/x-gzip",
 }
 
+// Server represents the HTTP server for the URL shortener application.
+// It manages HTTP routes, middleware, and coordinates between handlers and the repository.
 type Server struct {
-	router     *chi.Mux
-	config     *config.Config
-	repo       repository.Repository
+	// router is the Chi router instance for handling HTTP routes.
+	router *chi.Mux
+	// config holds the application configuration settings.
+	config *config.Config
+	// repo is the repository interface for data persistence.
+	repo repository.Repository
+	// urlChecker is used for validating URLs before processing.
 	urlChecker validate.URLChecker
-	ctx        context.Context
+	// ctx is the background context for the server.
+	ctx context.Context
 }
 
+// NewServer creates a new HTTP server instance with the provided configuration and repository.
+// The server is initialized with Chi router, URL validation service, and background context.
 func NewServer(cfg *config.Config, repo repository.Repository) *Server {
 	return &Server{
 		router:     chi.NewRouter(),
@@ -48,6 +60,8 @@ func NewServer(cfg *config.Config, repo repository.Repository) *Server {
 	}
 }
 
+// Run starts the HTTP server and begins listening for requests.
+// It initializes the logger, repository, middleware, and mounts all route handlers.
 func (s *Server) Run() {
 	if err := logger.Initialize(s.config.LogLevel); err != nil {
 		log.Fatal(err)
@@ -79,8 +93,11 @@ func (s *Server) Run() {
 	if lsErr != nil {
 		logger.Log.Fatal("server: failed to run", zap.Error(lsErr))
 	}
+
+	s.router.Mount("/debug", chimiddleware.Profiler())
 }
 
+// mountHandlers registers all HTTP route handlers with the router.
 func (s *Server) mountHandlers() {
 	s.router.Post("/", handlers.NewSavePlainTextHandler(s.config, s.repo, s.urlChecker))
 	s.router.Post("/api/shorten", handlers.NewSaveJSONHandler(s.config, s.repo, s.urlChecker))

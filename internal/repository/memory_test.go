@@ -3,10 +3,9 @@ package repository
 import (
 	"testing"
 
+	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/aifedorov/shortener/pkg/random"
 )
 
 func TestMemoryStorage_GetURL(t *testing.T) {

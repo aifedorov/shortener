@@ -6,19 +6,31 @@ import (
 	"os"
 )
 
+// Config holds the application configuration settings.
+// Configuration can be set via command line flags or environment variables.
 type Config struct {
-	RunAddr         string
-	BaseURL         string
-	LogLevel        string
+	// RunAddr is the address and port where the server will listen.
+	RunAddr string
+	// BaseURL is the base URL used for generating short URLs.
+	BaseURL string
+	// LogLevel specifies the logging level (debug, info, warn, error).
+	LogLevel string
+	// FileStoragePath is the path to the file-based storage (optional).
 	FileStoragePath string
-	DSN             string
-	SecretKey       string
+	// DSN is the PostgreSQL database connection string (optional).
+	DSN string
+	// SecretKey is used for JWT token signing and validation.
+	SecretKey string
 }
 
+// NewConfig creates a new Config instance with default values.
+// The configuration should be populated using ParseFlags() before use.
 func NewConfig() *Config {
 	return &Config{}
 }
 
+// ParseFlags parses command line flags and environment variables to populate the configuration.
+// Command line flags take precedence over environment variables.
 func (cfg *Config) ParseFlags() {
 	flag.StringVar(&cfg.RunAddr, "a", ":8080", "address and port to run server")
 	flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080", "address and port for short url")
