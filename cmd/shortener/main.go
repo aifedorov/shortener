@@ -19,7 +19,7 @@ var (
 
 func main() {
 	if buildVersion == "" {
-		buildDate = "N/A"
+		buildVersion = "N/A"
 	}
 	if buildCommit == "" {
 		buildCommit = "N/A"
