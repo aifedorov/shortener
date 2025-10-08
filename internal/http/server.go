@@ -62,7 +62,7 @@ func NewServer(cfg *config.Config, repo repository.Repository) *Server {
 
 // Run starts the HTTP server and begins listening for requests.
 // It initializes the logger, repository, middleware, and mounts all route handlers.
-func (s *Server) Run() {
+func (s *Server) Run() error {
 	if err := logger.Initialize(s.config.LogLevel); err != nil {
 		log.Fatal(err)
 	}
@@ -88,13 +88,13 @@ func (s *Server) Run() {
 
 	s.mountHandlers()
 
-	logger.Log.Info("server: running on", zap.String("address", s.config.RunAddr))
-	lsErr := http.ListenAndServe(s.config.RunAddr, s.router)
-	if lsErr != nil {
-		logger.Log.Fatal("server: failed to run", zap.Error(lsErr))
+	if s.config.EnableHTTPS {
+		logger.Log.Info("HTTPS server: running on", zap.String("address", s.config.RunAddr))
+		return http.ListenAndServeTLS(s.config.RunAddr, "cert.pem", "key.pem", s.router)
+	} else {
+		logger.Log.Info("HTTP server: running on", zap.String("address", s.config.RunAddr))
+		return http.ListenAndServe(s.config.RunAddr, s.router)
 	}
-
-	s.router.Mount("/debug", chimiddleware.Profiler())
 }
 
 // mountHandlers registers all HTTP route handlers with the router.

@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"strconv"
 )
 
 // Config holds the application configuration settings.
@@ -21,6 +22,8 @@ type Config struct {
 	DSN string
 	// SecretKey is used for JWT token signing and validation.
 	SecretKey string
+	// EnableHTTPS specifies whether to enable HTTPS.
+	EnableHTTPS bool
 }
 
 // NewConfig creates a new Config instance with default values.
@@ -37,6 +40,7 @@ func (cfg *Config) ParseFlags() {
 	flag.StringVar(&cfg.LogLevel, "l", "info", "log level")
 	flag.StringVar(&cfg.FileStoragePath, "f", "", "file repository path")
 	flag.StringVar(&cfg.DSN, "d", "", "postgres connection string")
+	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "enable https")
 	flag.Parse()
 
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
@@ -57,6 +61,11 @@ func (cfg *Config) ParseFlags() {
 
 	if envDSN := os.Getenv("DATABASE_DSN"); envDSN != "" {
 		cfg.DSN = envDSN
+	}
+
+	if envEnableHTTPS := os.Getenv("ENABLE_HTTPS"); envEnableHTTPS != "" {
+		val, _ := strconv.ParseBool(envEnableHTTPS)
+		cfg.EnableHTTPS = val
 	}
 
 	secretKey := os.Getenv("SECRET_KEY")
