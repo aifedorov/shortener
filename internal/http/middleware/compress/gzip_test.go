@@ -105,8 +105,11 @@ func BenchmarkCompressWriter(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		w := httptest.NewRecorder()
 		cw := newCompressWriter(w)
-		cw.Write(data)
-		cw.Close()
+		_, err := cw.Write(data)
+		require.NoError(b, err)
+
+		err = cw.Close()
+		require.NoError(b, err)
 	}
 }
 
@@ -115,8 +118,11 @@ func BenchmarkCompressReader(b *testing.B) {
 
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
-	zw.Write(data)
-	zw.Close()
+	_, err := zw.Write(data)
+	require.NoError(b, err)
+
+	err = zw.Close()
+	require.NoError(b, err)
 
 	compressedData := buf.Bytes()
 
@@ -124,14 +130,12 @@ func BenchmarkCompressReader(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		reader := bytes.NewReader(compressedData)
 		cr, err := newCompressReader(io.NopCloser(reader))
-		if err != nil {
-			b.Fatal(err)
-		}
+		require.NoError(b, err)
 
 		_, err = io.ReadAll(cr)
-		if err != nil {
-			b.Fatal(err)
-		}
-		cr.Close()
+		require.NoError(b, err)
+
+		err = cr.Close()
+		require.NoError(b, err)
 	}
 }
