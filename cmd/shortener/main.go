@@ -34,9 +34,10 @@ func main() {
 	fmt.Printf("Build date: %s\n", buildDate)
 	fmt.Printf("Build commit: %s\n", buildCommit)
 
-	cfg := config.NewConfig()
-	cfg.ParseFlags()
-
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		logger.Log.Fatal("failed to load config", zap.Error(err))
+	}
 	repo := repository.NewRepository(context.Background(), cfg)
 	srv := server.NewServer(cfg, repo)
 

@@ -33,7 +33,7 @@ func TestServer_Integration(t *testing.T) {
 		}, nil)
 		mockRepo.EXPECT().Ping().Return(nil)
 
-		server := NewServer(config.NewConfig(), mockRepo)
+		server := NewServer(newMockConfig(), mockRepo)
 		server.mountHandlers()
 
 		userID := uuid.NewString()
@@ -69,7 +69,7 @@ func TestServer_Integration(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		cfg := config.NewConfig()
+		cfg := newMockConfig()
 		mockRepo := mocks.NewMockRepository(ctrl)
 		server := NewServer(cfg, mockRepo)
 
@@ -84,7 +84,7 @@ func TestServer_Integration(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(config.NewConfig(), mockRepo)
+		server := NewServer(newMockConfig(), mockRepo)
 		server.mountHandlers()
 
 		// Test without user ID (should return unauthorized for plain text)
@@ -103,7 +103,7 @@ func TestServer_ErrorHandling(t *testing.T) {
 
 		mockRepo := mocks.NewMockRepository(ctrl)
 		mockRepo.EXPECT().Get("nonexistent").Return("", repository.ErrShortURLNotFound)
-		server := NewServer(config.NewConfig(), mockRepo)
+		server := NewServer(newMockConfig(), mockRepo)
 		server.mountHandlers()
 
 		req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
@@ -116,7 +116,7 @@ func TestServer_ErrorHandling(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(config.NewConfig(), mockRepo)
+		server := NewServer(newMockConfig(), mockRepo)
 		server.mountHandlers()
 
 		req := httptest.NewRequest(http.MethodPut, "/", nil)
@@ -129,4 +129,17 @@ func executeRequest(req *http.Request, s *Server) *httptest.ResponseRecorder {
 	r := httptest.NewRecorder()
 	s.router.ServeHTTP(r, req)
 	return r
+}
+
+func newMockConfig() *config.Config {
+	return &config.Config{
+		RunAddr:         ":8080",
+		BaseURL:         "http://localhost:8080",
+		LogLevel:        "info",
+		FileStoragePath: "short-url-db",
+		DSN:             "postgres://localhost/test",
+		SecretKey:       "test-secret-key",
+		EnableHTTPS:     false,
+		ConfigPath:      "",
+	}
 }
