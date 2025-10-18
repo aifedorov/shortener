@@ -1,5 +1,3 @@
-//go:build ignore
-
 // Package main provides a static code analyzer for the shortener project.
 //
 // The static linter combines various analyzers to check Go code for quality

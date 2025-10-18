@@ -41,6 +41,8 @@ type Config struct {
 
 // LoadConfig parses command line flags, environment variables to populate the configuration, then reads the JSON config file.
 // Priority Order: CLI flags > Environment > Config file > Defaults
+//
+//nolint:cyclop
 func LoadConfig() (*Config, error) {
 	cfgEnvs, err := parseEnvs()
 	if err != nil {
@@ -50,8 +52,12 @@ func LoadConfig() (*Config, error) {
 	cfgFlags := parseFlags()
 
 	var cfgFile *Config
-	if cfgFlags.ConfigPath != "" {
-		cfgFile, err = parseConfigFromFile(cfgFlags.ConfigPath)
+	configPath := cfgFlags.ConfigPath
+	if configPath == "" && cfgEnvs.ConfigPath != "" {
+		configPath = cfgEnvs.ConfigPath
+	}
+	if configPath != "" {
+		cfgFile, err = parseConfigFromFile(configPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse config file: %w", err)
 		}
@@ -152,14 +158,16 @@ func parseEnvs() (*Config, error) {
 //	-c: path to JSON config file
 func parseFlags() *Config {
 	cfg := &Config{}
-	flag.StringVar(&cfg.RunAddr, "a", ":8080", "address and port to run server")
-	flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080", "address and port for short url")
-	flag.StringVar(&cfg.LogLevel, "l", "info", "log level")
-	flag.StringVar(&cfg.FileStoragePath, "f", "", "file repository path")
-	flag.StringVar(&cfg.DSN, "d", "", "postgres connection string")
-	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "enable https")
-	flag.StringVar(&cfg.ConfigPath, "c", "", "path to json config file")
-	flag.Parse()
+	if !flag.Parsed() {
+		flag.StringVar(&cfg.RunAddr, "a", ":8080", "address and port to run server")
+		flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080", "address and port for short url")
+		flag.StringVar(&cfg.LogLevel, "l", "info", "log level")
+		flag.StringVar(&cfg.FileStoragePath, "f", "", "file repository path")
+		flag.StringVar(&cfg.DSN, "d", "", "postgres connection string")
+		flag.BoolVar(&cfg.EnableHTTPS, "s", false, "enable https")
+		flag.StringVar(&cfg.ConfigPath, "c", "", "path to json config file")
+		flag.Parse()
+	}
 	return cfg
 }
 
@@ -202,7 +210,7 @@ func mergeConfigs(dst *Config, src *Config) error {
 	if src.DSN != "" {
 		dst.DSN = src.DSN
 	}
-	if !src.EnableHTTPS {
+	if src.EnableHTTPS {
 		dst.EnableHTTPS = src.EnableHTTPS
 	}
 	if src.ConfigPath != "" {

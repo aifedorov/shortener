@@ -91,16 +91,21 @@ func TestLoadConfig(t *testing.T) {
 			clearEnv()
 
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
+				err := os.Setenv(key, value)
+				assert.NoError(t, err)
 			}
 			defer clearEnv()
 
 			if tt.configFile != "" && tt.configContent != "" {
 				err := os.WriteFile(tt.configFile, []byte(tt.configContent), 0644)
 				assert.NoError(t, err)
-				defer os.Remove(tt.configFile)
+				defer func() {
+					err := os.Remove(tt.configFile)
+					assert.NoError(t, err)
+				}()
 
-				os.Setenv("CONFIG", tt.configFile)
+				err = os.Setenv("CONFIG", tt.configFile)
+				assert.NoError(t, err)
 			}
 
 			cfg, err := LoadConfig()
@@ -184,7 +189,8 @@ func TestParseEnvs(t *testing.T) {
 			clearEnv()
 
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
+				err := os.Setenv(key, value)
+				assert.NoError(t, err)
 			}
 			defer clearEnv()
 
@@ -256,7 +262,10 @@ func TestParseConfigFromFile(t *testing.T) {
 			tempFile := "test_config_" + tt.name + ".json"
 			err := os.WriteFile(tempFile, []byte(tt.configContent), 0644)
 			assert.NoError(t, err)
-			defer os.Remove(tempFile)
+			defer func() {
+				err := os.Remove(tempFile)
+				assert.NoError(t, err)
+			}()
 
 			cfg, err := parseConfigFromFile(tempFile)
 
@@ -461,7 +470,10 @@ func TestReadConfigFromFile(t *testing.T) {
 			if tt.createFile && tt.filePath != "" {
 				err := os.WriteFile(tt.filePath, []byte(tt.fileContent), 0644)
 				assert.NoError(t, err)
-				defer os.Remove(tt.filePath)
+				defer func() {
+					err := os.Remove(tt.filePath)
+					assert.NoError(t, err)
+				}()
 			}
 
 			cfg, err := readConfigFromFile(tt.filePath)
@@ -495,6 +507,6 @@ func clearEnv() {
 	}
 
 	for _, env := range envVars {
-		os.Unsetenv(env)
+		_ = os.Unsetenv(env)
 	}
 }
