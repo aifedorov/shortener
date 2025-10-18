@@ -22,6 +22,9 @@ jobs:
     needs: branchtest
     env:
       SECRET_KEY: "t{$z]P%bwE"
+      SERVER_ADDRESS: ":8080"
+      BASE_URL: "http://localhost:8080"
+      LOG_LEVEL: "info"
 
     services:
       postgres:

@@ -225,7 +225,8 @@ func mergeConfigs(dst *Config, src *Config) error {
 
 // validateConfig validates that all required configuration fields are set.
 // Returns an error if any required field is empty or invalid.
-// Required fields: RunAddr, BaseURL, LogLevel, FileStoragePath, DSN, SecretKey.
+// Required fields: RunAddr, BaseURL, LogLevel, SecretKey.
+// Optional: FileStoragePath, DSN (at least one storage type will be selected)
 func validateConfig(cfg *Config) error {
 	if cfg.RunAddr == "" {
 		return errors.New("run address is empty")
@@ -236,16 +237,9 @@ func validateConfig(cfg *Config) error {
 	if cfg.LogLevel == "" {
 		return errors.New("log level is empty")
 	}
-	if cfg.FileStoragePath == "" {
-		return errors.New("file storage path is empty")
-	}
-	if cfg.DSN == "" {
-		return errors.New("database connection string is empty")
-	}
 	if cfg.SecretKey == "" {
 		return errors.New("secret key is empty")
 	}
-
 	return nil
 }
 
