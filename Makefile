@@ -1,4 +1,4 @@
-.PHONY: build test run docker-up docker-down docker-db-up docker-db-down docker-restart-app docker-logs lint migrate-up migrate-down migrate-create
+.PHONY: build test run docker-up docker-down docker-db-up docker-db-stop docker-restart-app docker-logs lint migrate-up migrate-down migrate-create
 
 build:
 	@echo "Building application..."
@@ -24,7 +24,7 @@ docker-db-up:
 	docker-compose up -d postgres
 	docker-compose up migrate
 
-docker-db-down:
+docker-db-stop:
 	@echo "Stopping database..."
 	docker-compose stop postgres
 

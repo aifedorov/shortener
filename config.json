@@ -1,8 +1,8 @@
 {
-  "server_address": ":8080",
+  "server_address": "localhost:8080",
   "base_url": "http://localhost",
   "log_level": "debug",
   "file_storage_path": "urls.db",
-  "database_dsn": "host=localhost port=5432 user=shortener password=shortener dbname=shortener sslmode=disable",
+  "database_dsn": "postgres://postgres:shortener@localhost:5432/shortener?sslmode=disable",
   "enable_https": false
 }

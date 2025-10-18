@@ -202,7 +202,7 @@ func mergeConfigs(dst *Config, src *Config) error {
 	if src.DSN != "" {
 		dst.DSN = src.DSN
 	}
-	if src.EnableHTTPS != false {
+	if !src.EnableHTTPS {
 		dst.EnableHTTPS = src.EnableHTTPS
 	}
 	if src.ConfigPath != "" {

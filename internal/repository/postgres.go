@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -64,6 +65,12 @@ func (p *PostgresRepository) Run() error {
 		return err
 	}
 	p.db = db
+
+	err = p.Ping()
+	if err != nil {
+		logger.Log.Error("postgres: failed to ping", zap.Error(err))
+		return fmt.Errorf("failed to ping: %w", err)
+	}
 
 	return nil
 }
