@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -55,7 +56,7 @@ func NewPosgresRepository(ctx context.Context, dsn string) *PostgresRepository {
 	}
 }
 
-// Run initializes the PostgreSQL repository by opening the database connection and creating tables.
+// Run initializes the PostgreSQL repository by opening the database connection.
 func (p *PostgresRepository) Run() error {
 	logger.Log.Debug("postgres: opening db", zap.String("dsn", p.dsn))
 	db, err := sql.Open("pgx", p.dsn)
@@ -65,11 +66,10 @@ func (p *PostgresRepository) Run() error {
 	}
 	p.db = db
 
-	logger.Log.Debug("postgres: creating table")
-	err = p.createTable()
+	err = p.Ping()
 	if err != nil {
-		logger.Log.Error("postgres: failed to create table", zap.Error(err))
-		return err
+		logger.Log.Error("postgres: failed to ping", zap.Error(err))
+		return fmt.Errorf("failed to ping: %w", err)
 	}
 
 	return nil
@@ -138,35 +138,6 @@ func (p *PostgresRepository) StoreBatch(userID, baseURL string, urls []BatchURLI
 // DeleteBatch marks multiple URLs as deleted for a specific user in the PostgreSQL database.
 func (p *PostgresRepository) DeleteBatch(userID string, aliases []string) error {
 	return p.deleteBatch(userID, aliases)
-}
-
-func (p *PostgresRepository) createTable() error {
-	tx, err := p.db.BeginTx(p.ctx, nil)
-	if err != nil {
-		logger.Log.Error("postgres: failed to create table", zap.Error(err))
-		return err
-	}
-
-	query := `CREATE TABLE IF NOT EXISTS urls (
-    		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    		cid CHAR(36) NOT NULL,
-    		user_id CHAR(36) NOT NULL,
-			alias TEXT NOT NULL,
-		 	original_url TEXT NOT NULL UNIQUE,
-		 	created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		 	is_deleted BOOLEAN DEFAULT FALSE,
-            UNIQUE (user_id, original_url)
-		);
-		`
-	ctx, cancel := context.WithTimeout(p.ctx, defaultDBTimeout)
-	defer cancel()
-
-	_, err = tx.ExecContext(ctx, query)
-	if err != nil {
-		logger.Log.Error("postgres: failed to create table", zap.Error(err))
-		return tx.Rollback()
-	}
-	return tx.Commit()
 }
 
 func (p *PostgresRepository) store(userID, baseURL, targetURL string) (string, error) {

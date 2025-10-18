@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/http"
@@ -32,10 +34,14 @@ func main() {
 	fmt.Printf("Build date: %s\n", buildDate)
 	fmt.Printf("Build commit: %s\n", buildCommit)
 
-	cfg := config.NewConfig()
-	cfg.ParseFlags()
-
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		logger.Log.Fatal("failed to load config", zap.Error(err))
+	}
 	repo := repository.NewRepository(context.Background(), cfg)
 	srv := server.NewServer(cfg, repo)
-	srv.Run()
+
+	if err := srv.Run(); err != nil {
+		logger.Log.Fatal("server: failed to run", zap.Error(err))
+	}
 }
