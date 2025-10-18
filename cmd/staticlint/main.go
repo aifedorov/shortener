@@ -18,6 +18,7 @@
 //
 // Where packages are Go package paths to analyze.
 // If no packages are specified, the current package is analyzed.
+
 package main
 
 import (

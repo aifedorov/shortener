@@ -2,9 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
+	"net/http"
+	"os/signal"
+	"syscall"
 
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/http"
@@ -32,10 +39,40 @@ func main() {
 	fmt.Printf("Build date: %s\n", buildDate)
 	fmt.Printf("Build commit: %s\n", buildCommit)
 
-	cfg := config.NewConfig()
-	cfg.ParseFlags()
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		logger.Log.Fatal("failed to load config", zap.Error(err))
+	}
 
-	repo := repository.NewRepository(context.Background(), cfg)
-	srv := server.NewServer(cfg, repo)
-	srv.Run()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	defer stop()
+
+	repo := repository.NewRepository(ctx, cfg)
+	srv := server.NewServer(ctx, cfg, repo)
+
+	go func() {
+		<-ctx.Done()
+
+		logger.Log.Info("start gracefully shutting down")
+
+		err = srv.Shutdown()
+		if err != nil {
+			log.Printf("failed to shutdown server (ignoring): %v", err)
+		}
+
+		err := repo.Close()
+		if err != nil {
+			log.Printf("failed to close repository (ignoring): %v", err)
+		}
+
+		logger.Log.Info("finish gracefully shutting down")
+
+		if err := logger.Log.Sync(); err != nil {
+			log.Printf("failed to sync logger (ignoring): %v", err)
+		}
+	}()
+
+	if err := srv.Run(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.Log.Fatal("failed to run server", zap.Error(err))
+	}
 }
