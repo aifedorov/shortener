@@ -233,5 +233,28 @@ func (m *mockRepository) DeleteBatch(_ string, _ []string) error {
 }
 
 func (m *mockRepository) GetStats() (repository.StatsOutput, error) {
-	return repository.StatsOutput{}, nil
+	return repository.StatsOutput{
+		TotalURLs:  100,
+		TotalUsers: 25,
+	}, nil
+}
+
+// ExampleNewStatsHandler demonstrates how to create a statistics handler.
+func ExampleNewStatsHandler() {
+	// Create a mock repository
+	repo := &mockRepository{}
+
+	// Create the handler
+	_ = NewStatsHandler(repo)
+
+	// The handler is now ready to serve statistics
+	// Note: This endpoint is available to all users (no authentication required)
+	fmt.Printf("Handler created for service statistics\n")
+	fmt.Printf("Handler accepts: GET /api/internal/stats\n")
+	fmt.Printf("Response format: {\"urls\": <int>, \"users\": <int>}\n")
+
+	// Output:
+	// Handler created for service statistics
+	// Handler accepts: GET /api/internal/stats
+	// Response format: {"urls": <int>, "users": <int>}
 }
