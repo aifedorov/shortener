@@ -14,7 +14,7 @@ import (
 )
 
 // NewStatsHandler creates a new HTTP handler for retrieving service statistics.
-// This endpoint is available to all users without authentication.
+// This endpoint requires the client IP to be within the trusted subnet.
 // It returns the total number of shortened URLs and users in the service.
 // Only the GET method is allowed.
 func NewStatsHandler(cfg *config.Config, repo repository.Repository) http.HandlerFunc {
@@ -31,17 +31,17 @@ func NewStatsHandler(cfg *config.Config, repo repository.Repository) http.Handle
 			return
 		}
 
-		ip, ipnet, err := net.ParseCIDR(cfg.TrustedSubnet)
+		_, ipnet, err := net.ParseCIDR(cfg.TrustedSubnet)
 		if err != nil {
 			logger.Log.Error("stats: failed to parse trusted subnet", zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 			return
 		}
-		logger.Log.Debug("stats: checking IP", zap.String("ip", rIP.String()))
-		logger.Log.Debug("stats: masked IP", zap.String("mask", ipnet.Mask.String()))
 
-		if !ip.Equal(rIP.Mask(ipnet.Mask)) {
-			logger.Log.Info("stats: request IP is not in trusted subnet", zap.String("ip", rIP.String()))
+		if !ipnet.Contains(rIP) {
+			logger.Log.Info("stats: request IP is not in trusted subnet",
+				zap.String("ip", rIP.String()),
+				zap.String("subnet", cfg.TrustedSubnet))
 			http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 			return
 		}
@@ -70,17 +70,27 @@ func NewStatsHandler(cfg *config.Config, repo repository.Repository) http.Handle
 
 func resolveIP(r *http.Request) (net.IP, error) {
 	ipStr := r.Header.Get("X-Real-IP")
-	ip := net.ParseIP(ipStr)
-	if ipStr == "" {
-		ips := r.Header.Get("X-Forwarded-For")
-		if len(ips) == 0 {
-			return nil, nil
+	if ipStr != "" {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			return nil, errors.New("failed to parse X-Real-IP")
 		}
-		ipStrs := strings.Split(ips, `,`)
-		ip = net.ParseIP(ipStrs[0])
+		return ip, nil
 	}
+
+	ips := r.Header.Get("X-Forwarded-For")
+	if ips == "" {
+		return nil, errors.New("no IP headers found")
+	}
+
+	ipStrs := strings.Split(ips, ",")
+	if len(ipStrs) == 0 {
+		return nil, errors.New("empty X-Forwarded-For header")
+	}
+
+	ip := net.ParseIP(strings.TrimSpace(ipStrs[0]))
 	if ip == nil {
-		return nil, errors.New("failed to resolve IP")
+		return nil, errors.New("failed to parse X-Forwarded-For")
 	}
 	return ip, nil
 }
