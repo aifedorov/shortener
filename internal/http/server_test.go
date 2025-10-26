@@ -33,8 +33,7 @@ func TestServer_Integration(t *testing.T) {
 		}, nil)
 		mockRepo.EXPECT().Ping().Return(nil)
 
-		server := NewServer(config.NewConfig(), mockRepo)
-		server.mountHandlers()
+		server := NewServer(context.Background(), newMockConfig(), mockRepo)
 
 		userID := uuid.NewString()
 		ctx := context.WithValue(context.Background(), auth.UserIDKey, userID)
@@ -69,12 +68,11 @@ func TestServer_Integration(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		cfg := config.NewConfig()
+		cfg := newMockConfig()
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(cfg, mockRepo)
+		server := NewServer(context.Background(), cfg, mockRepo)
 
 		assert.NotNil(t, server)
-		assert.NotNil(t, server.router)
 		assert.Equal(t, cfg, server.config)
 		assert.Equal(t, mockRepo, server.repo)
 	})
@@ -84,13 +82,12 @@ func TestServer_Integration(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(config.NewConfig(), mockRepo)
-		server.mountHandlers()
+		server := NewServer(context.Background(), newMockConfig(), mockRepo)
 
-		// Test without user ID (should return unauthorized for plain text)
+		// Test without user ID (should return unsupported media type since no Content-Type header)
 		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com"))
 		res := executeRequest(req, server)
-		assert.Equal(t, http.StatusUnauthorized, res.Code)
+		assert.Equal(t, http.StatusUnsupportedMediaType, res.Code)
 	})
 }
 
@@ -103,8 +100,7 @@ func TestServer_ErrorHandling(t *testing.T) {
 
 		mockRepo := mocks.NewMockRepository(ctrl)
 		mockRepo.EXPECT().Get("nonexistent").Return("", repository.ErrShortURLNotFound)
-		server := NewServer(config.NewConfig(), mockRepo)
-		server.mountHandlers()
+		server := NewServer(context.Background(), newMockConfig(), mockRepo)
 
 		req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
 		res := executeRequest(req, server)
@@ -116,8 +112,7 @@ func TestServer_ErrorHandling(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(config.NewConfig(), mockRepo)
-		server.mountHandlers()
+		server := NewServer(context.Background(), newMockConfig(), mockRepo)
 
 		req := httptest.NewRequest(http.MethodPut, "/", nil)
 		res := executeRequest(req, server)
@@ -127,6 +122,19 @@ func TestServer_ErrorHandling(t *testing.T) {
 
 func executeRequest(req *http.Request, s *Server) *httptest.ResponseRecorder {
 	r := httptest.NewRecorder()
-	s.router.ServeHTTP(r, req)
+	s.srv.Handler.ServeHTTP(r, req)
 	return r
+}
+
+func newMockConfig() *config.Config {
+	return &config.Config{
+		RunAddr:         ":8080",
+		BaseURL:         "http://localhost:8080",
+		LogLevel:        "info",
+		FileStoragePath: "short-url-db",
+		DSN:             "postgres://localhost/test",
+		SecretKey:       "test-secret-key",
+		EnableHTTPS:     false,
+		ConfigPath:      "",
+	}
 }
