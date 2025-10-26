@@ -8,6 +8,9 @@ import (
 	"log"
 	"os"
 	"strconv"
+
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
+	"go.uber.org/zap"
 )
 
 // File repository constants
@@ -255,7 +258,10 @@ func readConfigFromFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to open config file: %w", err)
 	}
 	defer func() {
-		_ = file.Close()
+		err = file.Close()
+		if err != nil {
+			logger.Log.Error("failed to close config file", zap.Error(err))
+		}
 	}()
 
 	cfg := Config{}
