@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strconv"
 
@@ -40,6 +41,8 @@ type Config struct {
 	EnableHTTPS bool `json:"enable_https"`
 	// ConfigPath is the path to the config file.
 	ConfigPath string `json:"-"`
+	// TrustedSubnet is the subnet allowed to access the API.
+	TrustedSubnet string `json:"trusted_subnet"`
 }
 
 // LoadConfig parses command line flags, environment variables to populate the configuration, then reads the JSON config file.
@@ -102,6 +105,7 @@ func LoadConfig() (*Config, error) {
 //   - ENABLE_HTTPS: enable HTTPS (true/false)
 //   - CONFIG: path to JSON config file
 //   - SECRET_KEY: JWT signing key (required)
+//   - TRUSTED_SUBNET: subnet allowed to access the API
 //
 //nolint:cyclop
 func parseEnvs() (*Config, error) {
@@ -138,6 +142,10 @@ func parseEnvs() (*Config, error) {
 		cfg.ConfigPath = envConfigPath
 	}
 
+	if envTrustedSubnet := os.Getenv("TRUSTED_SUBNET"); envTrustedSubnet != "" {
+		cfg.TrustedSubnet = envTrustedSubnet
+	}
+
 	if secretKey := os.Getenv("SECRET_KEY"); secretKey != "" {
 		cfg.SecretKey = secretKey
 	}
@@ -152,13 +160,14 @@ func parseEnvs() (*Config, error) {
 // parseFlags parses configuration from command line flags.
 // Returns a Config with values set from the following flags:
 //
-//	-a: server address (default ":8080")
-//	-b: base URL (default "http://localhost:8080")
-//	-l: log level (default "info")
-//	-f: file storage path
-//	-d: database connection string
-//	-s: enable HTTPS (default false)
-//	-c: path to JSON config file
+//		-a: server address (default ":8080")
+//		-b: base URL (default "http://localhost:8080")
+//		-l: log level (default "info")
+//		-f: file storage path
+//		-d: database connection string
+//		-s: enable HTTPS (default false)
+//		-c: path to JSON config file
+//	    -t: trusted subnet
 func parseFlags() *Config {
 	cfg := &Config{}
 	if !flag.Parsed() {
@@ -169,6 +178,7 @@ func parseFlags() *Config {
 		flag.StringVar(&cfg.DSN, "d", "", "postgres connection string")
 		flag.BoolVar(&cfg.EnableHTTPS, "s", false, "enable https")
 		flag.StringVar(&cfg.ConfigPath, "c", "", "path to json config file")
+		flag.StringVar(&cfg.TrustedSubnet, "t", "", "trusted subnet")
 		flag.Parse()
 	}
 	return cfg
@@ -219,6 +229,9 @@ func mergeConfigs(dst *Config, src *Config) error {
 	if src.ConfigPath != "" {
 		dst.ConfigPath = src.ConfigPath
 	}
+	if src.TrustedSubnet != "" {
+		dst.TrustedSubnet = src.TrustedSubnet
+	}
 	if src.SecretKey != "" {
 		dst.SecretKey = src.SecretKey
 	}
@@ -242,6 +255,11 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.SecretKey == "" {
 		return errors.New("secret key is empty")
+	}
+	if len(cfg.TrustedSubnet) != 0 {
+		if _, _, err := net.ParseCIDR(cfg.TrustedSubnet); err != nil {
+			return fmt.Errorf("trusted subnet is invalid: %w", err)
+		}
 	}
 	return nil
 }

@@ -134,6 +134,9 @@ func (p *PostgresRepository) DeleteBatch(userID string, aliases []string) error 
 	return p.deleteBatch(userID, aliases)
 }
 
+// GetStats retrieves service statistics from the PostgreSQL database.
+// It returns the total count of unique URLs and unique users in the system.
+// This method counts distinct original URLs and user IDs from the urls table.
 func (p *PostgresRepository) GetStats() (StatsOutput, error) {
 	return p.fetchStats()
 }

@@ -111,7 +111,7 @@ func newRouter(cfg *config.Config, repo repository.Repository, urlChecker valida
 	router.Get("/ping", handlers.NewPingHandler(repo))
 	router.Get("/api/user/urls", handlers.NewURLsHandler(cfg, repo))
 	router.Delete("/api/user/urls", handlers.NewDeleteHandler(repo))
-	router.Get("/api/internal/stats", handlers.NewStatsHandler(repo))
+	router.Get("/api/internal/stats", handlers.NewStatsHandler(cfg, repo))
 
 	return router
 }

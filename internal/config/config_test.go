@@ -26,6 +26,7 @@ func TestLoadConfig(t *testing.T) {
 				"DATABASE_DSN":      "postgres://test",
 				"ENABLE_HTTPS":      "true",
 				"SECRET_KEY":        "test-secret-key",
+				"TRUSTED_SUBNET":    "127.0.0.1/32",
 			},
 			expectedError: false,
 			expectedConfig: &Config{
@@ -36,6 +37,7 @@ func TestLoadConfig(t *testing.T) {
 				DSN:             "postgres://test",
 				EnableHTTPS:     true,
 				SecretKey:       "test-secret-key",
+				TrustedSubnet:   "127.0.0.1/32",
 			},
 		},
 		{
@@ -123,6 +125,7 @@ func TestLoadConfig(t *testing.T) {
 				assert.Equal(t, tt.expectedConfig.DSN, cfg.DSN)
 				assert.Equal(t, tt.expectedConfig.EnableHTTPS, cfg.EnableHTTPS)
 				assert.Equal(t, tt.expectedConfig.SecretKey, cfg.SecretKey)
+				assert.Equal(t, tt.expectedConfig.TrustedSubnet, cfg.TrustedSubnet)
 			}
 		})
 	}
@@ -146,6 +149,7 @@ func TestParseEnvs(t *testing.T) {
 				"ENABLE_HTTPS":      "true",
 				"CONFIG":            "/path/to/config",
 				"SECRET_KEY":        "my-secret-key",
+				"TRUSTED_SUBNET":    "127.0.0.1/32",
 			},
 			expectedError: false,
 			expectedConfig: &Config{
@@ -157,6 +161,7 @@ func TestParseEnvs(t *testing.T) {
 				EnableHTTPS:     true,
 				ConfigPath:      "/path/to/config",
 				SecretKey:       "my-secret-key",
+				TrustedSubnet:   "127.0.0.1/32",
 			},
 		},
 		{
@@ -211,6 +216,7 @@ func TestParseEnvs(t *testing.T) {
 					assert.Equal(t, tt.expectedConfig.EnableHTTPS, cfg.EnableHTTPS)
 					assert.Equal(t, tt.expectedConfig.ConfigPath, cfg.ConfigPath)
 					assert.Equal(t, tt.expectedConfig.SecretKey, cfg.SecretKey)
+					assert.Equal(t, tt.expectedConfig.TrustedSubnet, cfg.TrustedSubnet)
 				}
 			}
 		})
@@ -405,6 +411,31 @@ func TestValidateConfig(t *testing.T) {
 			},
 			expectedError: true,
 		},
+		{
+			name: "invalid trusted subnet",
+			config: &Config{
+				RunAddr:         ":8080",
+				BaseURL:         "http://localhost:8080",
+				LogLevel:        "invalid",
+				FileStoragePath: "/tmp/storage",
+				DSN:             "postgres://test",
+				SecretKey:       "secret",
+				TrustedSubnet:   "invalid.subnet",
+			},
+			expectedError: true,
+		},
+		{
+			name: "valid trusted subnet",
+			config: &Config{
+				RunAddr:         ":8080",
+				BaseURL:         "http://localhost:8080",
+				LogLevel:        "invalid",
+				FileStoragePath: "/tmp/storage",
+				DSN:             "postgres://test",
+				SecretKey:       "secret",
+				TrustedSubnet:   "127.0.0.1/32",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -504,6 +535,7 @@ func clearEnv() {
 		"ENABLE_HTTPS",
 		"CONFIG",
 		"SECRET_KEY",
+		"TRUSTED_SUBNET",
 	}
 
 	for _, env := range envVars {

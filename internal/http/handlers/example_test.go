@@ -244,17 +244,25 @@ func ExampleNewStatsHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
+	// Create config with trusted subnet
+	cfg := &config.Config{
+		BaseURL:       "http://localhost:8080",
+		TrustedSubnet: "192.168.1.0/24",
+	}
+
 	// Create the handler
-	_ = NewStatsHandler(repo)
+	_ = NewStatsHandler(cfg, repo)
 
 	// The handler is now ready to serve statistics
-	// Note: This endpoint is available to all users (no authentication required)
+	// Note: This endpoint requires the request IP to be in the trusted subnet
 	fmt.Printf("Handler created for service statistics\n")
 	fmt.Printf("Handler accepts: GET /api/internal/stats\n")
 	fmt.Printf("Response format: {\"urls\": <int>, \"users\": <int>}\n")
+	fmt.Printf("Trusted subnet: 192.168.1.0/24\n")
 
 	// Output:
 	// Handler created for service statistics
 	// Handler accepts: GET /api/internal/stats
 	// Response format: {"urls": <int>, "users": <int>}
+	// Trusted subnet: 192.168.1.0/24
 }
