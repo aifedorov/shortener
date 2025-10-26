@@ -57,6 +57,8 @@ type Repository interface {
 	StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error)
 	// DeleteBatch marks multiple URLs as deleted for a specific user.
 	DeleteBatch(userID string, aliases []string) error
+	// GetStats returns statistics contains the number of URLs and users stored in the repository.
+	GetStats() (StatsOutput, error)
 }
 
 // NewRepository creates a new repository instance based on the provided configuration.

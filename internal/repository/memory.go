@@ -143,3 +143,11 @@ func (ms *MemoryRepository) DeleteBatch(_ string, aliases []string) error {
 	ms.mu.Unlock()
 	return nil
 }
+
+// GetStats returns statistics about the memory repository.
+func (ms *MemoryRepository) GetStats() (StatsOutput, error) {
+	return StatsOutput{
+		TotalURLs:  len(ms.PathToURL),
+		TotalUsers: 0,
+	}, nil
+}

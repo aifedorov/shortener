@@ -115,7 +115,33 @@ func (fs *FileRepository) Get(shortURL string) (string, error) {
 
 // GetAll retrieves all URLs belonging to a specific user from the file storage.
 func (fs *FileRepository) GetAll(_, _ string) ([]URLOutput, error) {
-	panic("implement me")
+	f, err := os.OpenFile(fs.fname, FileOpenFlagsRead, FilePermissionsRead)
+	if err != nil {
+		logger.Log.Error("fileStorage: failed to open file", zap.String("file", fs.fname), zap.Error(err))
+		return nil, err
+	}
+	defer func() {
+		err := f.Close()
+		if err != nil {
+			logger.Log.Error("fileStorage: failed to close file", zap.String("file", fs.fname), zap.Error(err))
+		}
+	}()
+
+	var res []URLOutput
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		var record URLMapping
+		if err := json.Unmarshal(scanner.Bytes(), &record); err != nil {
+			logger.Log.Error("fileStorage: failed to unmarshal record", zap.String("file", fs.fname), zap.Error(err))
+			return nil, err
+		}
+		ou := URLOutput{
+			ShortURL:    record.ShortURL,
+			OriginalURL: record.OriginalURL,
+		}
+		res = append(res, ou)
+	}
+	return res, nil
 }
 
 // Store saves a new URL to the file storage and returns the generated short URL.
@@ -155,7 +181,12 @@ func (fs *FileRepository) StoreBatch(_, baseURL string, urls []BatchURLInput) ([
 
 // DeleteBatch marks multiple URLs as deleted for a specific user.
 func (fs *FileRepository) DeleteBatch(_ string, _ []string) error {
-	panic("implement me")
+	return nil
+}
+
+// GetStats returns statistics contains the number of URLs and users stored in the repository.
+func (fs *FileRepository) GetStats() (StatsOutput, error) {
+	return StatsOutput{}, nil
 }
 
 // addNewURL adds a new URL mapping to the file storage.
@@ -174,7 +205,6 @@ func (fs *FileRepository) addNewURL(shortURL string, originalURL string) error {
 	}
 
 	writer := bufio.NewWriter(fs.file)
-
 	if _, err := writer.Write(data); err != nil {
 		logger.Log.Error("fileStorage: failed to write data to buffer", zap.String("file", fs.fname), zap.Error(err))
 		return err

@@ -202,20 +202,20 @@ func (m *mockRepository) Get(shortURL string) (string, error) {
 	return "", repository.ErrShortURLNotFound
 }
 
-func (m *mockRepository) GetAll(userID, baseURL string) ([]repository.URLOutput, error) {
+func (m *mockRepository) GetAll(userID, _ string) ([]repository.URLOutput, error) {
 	if urls, exists := m.userURLs[userID]; exists {
 		return urls, nil
 	}
 	return nil, repository.ErrUserHasNoData
 }
 
-func (m *mockRepository) Store(userID, baseURL, targetURL string) (string, error) {
+func (m *mockRepository) Store(_, baseURL, targetURL string) (string, error) {
 	shortURL := "abc123"
 	m.urls[shortURL] = targetURL
 	return baseURL + "/" + shortURL, nil
 }
 
-func (m *mockRepository) StoreBatch(userID, baseURL string, urls []repository.BatchURLInput) ([]repository.BatchURLOutput, error) {
+func (m *mockRepository) StoreBatch(_, baseURL string, urls []repository.BatchURLInput) ([]repository.BatchURLOutput, error) {
 	var results []repository.BatchURLOutput
 	for i, url := range urls {
 		shortURL := fmt.Sprintf("abc%d", i+1)
@@ -228,7 +228,10 @@ func (m *mockRepository) StoreBatch(userID, baseURL string, urls []repository.Ba
 	return results, nil
 }
 
-func (m *mockRepository) DeleteBatch(userID string, aliases []string) error {
-	// Mock implementation - just return success
+func (m *mockRepository) DeleteBatch(_ string, _ []string) error {
 	return nil
+}
+
+func (m *mockRepository) GetStats() (repository.StatsOutput, error) {
+	return repository.StatsOutput{}, nil
 }
