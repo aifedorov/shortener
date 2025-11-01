@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package shortener.v1;
+
+option go_package = "github.com/aifedorov/shortener/gen/shortener/v1";
+
+message CreateShortURLRequest {
+  string url = 1;
+}
+
+message CreateShortURLResponse {
+  string short_url = 1;
+}
+
+message BatchCreateShortURLRequest {
+  message URLInput {
+    string cid = 1;
+    string original_url = 2;
+  }
+
+  repeated URLInput urls = 1;
+}
+
+message BatchCreateShortURLResponse {
+  message URLOutput {
+    string cid = 1;
+    string short_url = 2;
+  }
+  repeated URLOutput urls = 1;
+}
+
+message PingRequest {}
+
+message PingResponse {}
+
+message GetShortURLRequest {
+  string short_url = 1;
+}
+
+message GetShortURLResponse {
+  string original_url = 1;
+}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  uint64 urls = 1;
+  uint64 users = 2;
+}
+
+message ListShortURLsRequest {}
+
+message ListShortURLsResponse {
+  message URLItem {
+    string short_url = 1;
+    string original_url = 2;
+  }
+
+  repeated URLItem urls = 1;
+}
+
+service ShortenerService {
+  rpc CreateShortURL(CreateShortURLRequest) returns (CreateShortURLResponse) {}
+  rpc BatchCreateShortURL(BatchCreateShortURLRequest) returns (BatchCreateShortURLResponse) {}
+  rpc Ping(PingRequest) returns (PingResponse) {}
+  rpc GetShortURL(GetShortURLRequest) returns (GetShortURLResponse) {}
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {}
+  rpc ListShortURLs(ListShortURLsRequest) returns (ListShortURLsResponse) {}
+}
