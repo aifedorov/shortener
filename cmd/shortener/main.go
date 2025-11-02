@@ -43,7 +43,11 @@ func main() {
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		logger.Log.Fatal("failed to load config", zap.Error(err))
+		log.Fatalf("failed to load config: %v", err)
+	}
+
+	if err := logger.Initialize(cfg.LogLevel); err != nil {
+		log.Fatalf("failed to initialize logger: %v", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
@@ -51,14 +55,14 @@ func main() {
 
 	repo := repository.NewRepository(ctx, cfg)
 	hSrv := httpserver.NewServer(ctx, cfg, repo)
-	gSrv := grpcserver.NewShortenerServer(repo, validate.NewService())
+	gSrv := grpcserver.NewShortenerServer(cfg, repo, validate.NewService())
 
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		logger.Log.Info("starting gRPC server on :3200")
+		logger.Log.Info("starting gRPC server", zap.String("address", cfg.GRPCAddr))
 		if err := gSrv.Run(); err != nil {
 			logger.Log.Error("gRPC server stopped", zap.Error(err))
 		}

@@ -27,6 +27,8 @@ const (
 type Config struct {
 	// RunAddr is the address and port where the server will listen to.
 	RunAddr string `json:"server_address"`
+	// GRPCAddr is the address and port where the gRPC server will listen to.
+	GRPCAddr string `json:"grpc_address"`
 	// BaseURL is the base URL used for generating short URLs.
 	BaseURL string `json:"base_url"`
 	// LogLevel specifies the logging level (debug, info, warn, error).
@@ -98,6 +100,7 @@ func LoadConfig() (*Config, error) {
 // parseEnvs parses configuration from environment variables.
 // Returns a Config with values set from the following environment variables:
 //   - SERVER_ADDRESS: server listen address
+//   - GRPC_ADDRESS: gRPC server listen address
 //   - BASE_URL: base URL for short URLs
 //   - LOG_LEVEL: logging level
 //   - FILE_STORAGE_PATH: path to file storage
@@ -112,6 +115,10 @@ func parseEnvs() (*Config, error) {
 	cfg := &Config{}
 	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
 		cfg.RunAddr = envRunAddr
+	}
+
+	if envGRPCAddr := os.Getenv("GRPC_ADDRESS"); envGRPCAddr != "" {
+		cfg.GRPCAddr = envGRPCAddr
 	}
 
 	if envShortBaseURL := os.Getenv("BASE_URL"); envShortBaseURL != "" {
@@ -161,6 +168,7 @@ func parseEnvs() (*Config, error) {
 // Returns a Config with values set from the following flags:
 //
 //		-a: server address (default ":8080")
+//		-g: gRPC server address (default ":9090")
 //		-b: base URL (default "http://localhost:8080")
 //		-l: log level (default "info")
 //		-f: file storage path
@@ -172,6 +180,7 @@ func parseFlags() *Config {
 	cfg := &Config{}
 	if !flag.Parsed() {
 		flag.StringVar(&cfg.RunAddr, "a", ":8080", "address and port to run server")
+		flag.StringVar(&cfg.GRPCAddr, "g", ":9090", "address and port to run gRPC server")
 		flag.StringVar(&cfg.BaseURL, "b", "http://localhost:8080", "address and port for short url")
 		flag.StringVar(&cfg.LogLevel, "l", "info", "log level")
 		flag.StringVar(&cfg.FileStoragePath, "f", "", "file repository path")
@@ -211,6 +220,9 @@ func mergeConfigs(dst *Config, src *Config) error {
 	if src.RunAddr != "" {
 		dst.RunAddr = src.RunAddr
 	}
+	if src.GRPCAddr != "" {
+		dst.GRPCAddr = src.GRPCAddr
+	}
 	if src.BaseURL != "" {
 		dst.BaseURL = src.BaseURL
 	}
@@ -241,11 +253,14 @@ func mergeConfigs(dst *Config, src *Config) error {
 
 // validateConfig validates that all required configuration fields are set.
 // Returns an error if any required field is empty or invalid.
-// Required fields: RunAddr, BaseURL, LogLevel, SecretKey.
+// Required fields: RunAddr, GRPCAddr, BaseURL, LogLevel, SecretKey.
 // Optional: FileStoragePath, DSN (at least one storage type will be selected)
 func validateConfig(cfg *Config) error {
 	if cfg.RunAddr == "" {
 		return errors.New("run address is empty")
+	}
+	if cfg.GRPCAddr == "" {
+		return errors.New("grpc address is empty")
 	}
 	if cfg.BaseURL == "" {
 		return errors.New("base url is empty")

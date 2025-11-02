@@ -20,6 +20,7 @@ func TestLoadConfig(t *testing.T) {
 			name: "successful load with environment variables",
 			envVars: map[string]string{
 				"SERVER_ADDRESS":    ":9090",
+				"GRPC_ADDRESS":      ":9091",
 				"BASE_URL":          "http://localhost:9090",
 				"LOG_LEVEL":         "debug",
 				"FILE_STORAGE_PATH": "/tmp/storage",
@@ -31,6 +32,7 @@ func TestLoadConfig(t *testing.T) {
 			expectedError: false,
 			expectedConfig: &Config{
 				RunAddr:         ":9090",
+				GRPCAddr:        ":9091",
 				BaseURL:         "http://localhost:9090",
 				LogLevel:        "debug",
 				FileStoragePath: "/tmp/storage",
@@ -68,6 +70,7 @@ func TestLoadConfig(t *testing.T) {
 			configFile: "test_config.json",
 			configContent: `{
 				"server_address": ":6060",
+				"grpc_address": ":9000",
 				"base_url": "http://localhost:6060",
 				"log_level": "warn",
 				"file_storage_path": "/config/storage",
@@ -77,6 +80,7 @@ func TestLoadConfig(t *testing.T) {
 			expectedError: false,
 			expectedConfig: &Config{
 				RunAddr:         ":7070",
+				GRPCAddr:        ":9000",
 				BaseURL:         "http://localhost:6060",
 				LogLevel:        "warn",
 				FileStoragePath: "/config/storage",
@@ -370,6 +374,7 @@ func TestValidateConfig(t *testing.T) {
 			name: "valid config",
 			config: &Config{
 				RunAddr:         ":8080",
+				GRPCAddr:        ":9090",
 				BaseURL:         "http://localhost:8080",
 				LogLevel:        "info",
 				FileStoragePath: "/tmp/storage",
@@ -428,6 +433,7 @@ func TestValidateConfig(t *testing.T) {
 			name: "valid trusted subnet",
 			config: &Config{
 				RunAddr:         ":8080",
+				GRPCAddr:        ":9090",
 				BaseURL:         "http://localhost:8080",
 				LogLevel:        "invalid",
 				FileStoragePath: "/tmp/storage",
@@ -528,6 +534,7 @@ func TestReadConfigFromFile(t *testing.T) {
 func clearEnv() {
 	envVars := []string{
 		"SERVER_ADDRESS",
+		"GRPC_ADDRESS",
 		"BASE_URL",
 		"LOG_LEVEL",
 		"FILE_STORAGE_PATH",

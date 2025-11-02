@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/aifedorov/shortener/internal/http/middleware/auth"
@@ -65,10 +64,6 @@ func NewServer(ctx context.Context, cfg *config.Config, repo repository.Reposito
 // Run starts the HTTP server and begins listening for requests.
 // It initializes the logger, repository, middleware, and mounts all route handlers.
 func (s *Server) Run() error {
-	if err := logger.Initialize(s.config.LogLevel); err != nil {
-		log.Fatal(err)
-	}
-
 	err := s.repo.Run()
 	if err != nil {
 		logger.Log.Fatal("server: failed to run repository", zap.Error(err))

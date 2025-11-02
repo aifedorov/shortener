@@ -18,8 +18,6 @@ import (
 )
 
 func TestServer_Integration(t *testing.T) {
-	t.Parallel()
-
 	t.Run("full workflow", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()

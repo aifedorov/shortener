@@ -66,7 +66,7 @@ type Repository interface {
 // or an in-memory repository as fallback.
 func NewRepository(ctx context.Context, cfg *config.Config) Repository {
 	if cfg.DSN != "" {
-		logger.Log.Debug("repository: use posgres storage")
+		logger.Log.Debug("repository: use PosgreSQL storage")
 		return NewPosgresRepository(ctx, cfg.DSN)
 	}
 	if cfg.FileStoragePath != "" {
