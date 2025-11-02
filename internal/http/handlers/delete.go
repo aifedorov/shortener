@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 )
@@ -22,7 +23,7 @@ func NewDeleteHandler(repo repository.Repository) http.HandlerFunc {
 			return
 		}
 
-		userID, err := getUserID(r)
+		userID, err := auth.GetUserID(r.Context())
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return

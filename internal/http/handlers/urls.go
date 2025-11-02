@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"go.uber.org/zap"
 
@@ -27,7 +28,7 @@ func NewURLsHandler(cfg *config.Config, repo repository.Repository) http.Handler
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
-		userID, err := getUserID(r)
+		userID, err := auth.GetUserID(r.Context())
 		if err != nil {
 			logger.Log.Error("error getting user id", zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)

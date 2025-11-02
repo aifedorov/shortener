@@ -197,7 +197,7 @@ func TestGetUserID(t *testing.T) {
 				req = req.WithContext(ctx)
 			}
 
-			result, err := getUserID(req)
+			result, err := auth.GetUserID(req.Context())
 
 			if tt.expectError {
 				assert.Error(t, err)

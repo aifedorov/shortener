@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/aifedorov/shortener/internal/config"
+	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
@@ -19,7 +20,7 @@ func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, 
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "text/plain")
 
-		userID, err := getUserID(r)
+		userID, err := auth.GetUserID(r.Context())
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return

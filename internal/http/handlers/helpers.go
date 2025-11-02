@@ -9,7 +9,6 @@ import (
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"go.uber.org/zap"
 
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 )
@@ -114,13 +113,4 @@ func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]rep
 		}
 	}
 	return urls, nil
-}
-
-func getUserID(r *http.Request) (string, error) {
-	userID, ok := r.Context().Value(auth.UserIDKey).(string)
-	if !ok || userID == "" {
-		logger.Log.Error("user_id not found")
-		return "", errors.New("user_id not found")
-	}
-	return userID, nil
 }
