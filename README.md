@@ -1,7 +1,7 @@
 # URL Shortener Service
 
-> **Educational Project**: Production-grade URL shortener service built to demonstrate modern Go development practices
-> and microservices architecture. Developed as part of a structured learning program with iterative feature development.
+An educational project demonstrating real-world Go development patterns and libraries used in production services,
+implementing clean architecture principles and modern software engineering practices.
 
 ## 🚀 What This Service Does
 
