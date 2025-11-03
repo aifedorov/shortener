@@ -8,8 +8,9 @@ import (
 
 	pb "github.com/aifedorov/shortener/api/grpc/gen/shortener/v1"
 	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/grpc/mw"
+	"github.com/aifedorov/shortener/internal/grpc/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
+	"github.com/aifedorov/shortener/internal/pkg/jwt"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 	"go.uber.org/zap"
@@ -18,6 +19,22 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+
+	_ "google.golang.org/grpc/encoding/gzip"
+)
+
+// Error message constants
+const (
+	errMsgInvalidURL      = "invalid url"
+	errMsgUnauthenticated = "unauthenticated"
+	errMsgNotFound        = "not found"
+	errMsgURLDeleted      = "url has been deleted"
+	errMsgAccessDenied    = "access denied"
+	errMsgFailedToCreate  = "failed to create url"
+	errMsgFailedToPing    = "failed to ping"
+	errMsgFailedToGetURLs = "failed to get urls"
+	errMsgFailedToStats   = "failed to get stats"
+	errMsgInternalError   = "internal server error"
 )
 
 type ShortenerServer struct {
@@ -26,30 +43,30 @@ type ShortenerServer struct {
 	grpc       *grpc.Server
 	repo       repository.Repository
 	urlChecker validate.URLChecker
-	ipnet      *net.IPNet
+	jwtChecker jwt.JWT
 }
 
-func NewShortenerServer(cfg *config.Config, repo repository.Repository, urlChecker validate.URLChecker) *ShortenerServer {
+func NewShortenerServer(cfg *config.Config, repo repository.Repository, urlChecker validate.URLChecker, jwtChecker jwt.JWT) *ShortenerServer {
 	return &ShortenerServer{
 		cfg:        cfg,
 		repo:       repo,
 		urlChecker: urlChecker,
+		jwtChecker: jwtChecker,
 	}
 }
 
 func (s *ShortenerServer) Run() error {
-	_, ipnet, err := net.ParseCIDR(s.cfg.TrustedSubnet)
-	if err != nil {
-		logger.Log.Error("grpc: failed to parse trusted subnet", zap.Error(err))
-		return fmt.Errorf("grpc: failed to parse trusted subnet: %w", err)
-	}
-	s.ipnet = ipnet
-
 	listen, err := net.Listen("tcp", s.cfg.GRPCAddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
-	s.grpc = grpc.NewServer(grpc.UnaryInterceptor(mw.AuthJWTInterceptor))
+
+	authInterceptor := auth.NewInterceptor(s.jwtChecker)
+
+	s.grpc = grpc.NewServer(
+		grpc.UnaryInterceptor(authInterceptor.UnaryAuthInterceptor),
+	)
+
 	pb.RegisterShortenerServiceServer(s.grpc, s)
 
 	reflection.Register(s.grpc)
@@ -61,17 +78,21 @@ func (s *ShortenerServer) CreateShortURL(ctx context.Context, request *pb.Create
 	url := request.GetUrl()
 	if err := s.urlChecker.CheckURL(url); err != nil {
 		logger.Log.Error("grpc: create short url: invalid url", zap.Error(err))
-		return nil, status.Error(codes.InvalidArgument, "invalid url")
+		return nil, status.Error(codes.InvalidArgument, errMsgInvalidURL)
 	}
 
-	// TODO: add userID and auth.
-	resURL, err := s.repo.Store("1", s.cfg.BaseURL, url)
+	userID, err := auth.GetUserID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, errMsgUnauthenticated)
+	}
+
+	resURL, err := s.repo.Store(userID, s.cfg.BaseURL, url)
 	var cErr *repository.ConflictError
 	if errors.As(err, &cErr) {
 		return nil, status.Error(codes.AlreadyExists, cErr.ShortURL)
 	}
 	if err != nil {
-		return nil, status.Error(codes.Internal, "failed to create url")
+		return nil, status.Error(codes.Internal, errMsgFailedToCreate)
 	}
 	return &pb.CreateShortURLResponse{ShortUrl: resURL}, nil
 }
@@ -83,7 +104,7 @@ func (s *ShortenerServer) BatchCreateShortURL(ctx context.Context, request *pb.B
 	for i, url := range urls {
 		if err := s.urlChecker.CheckURL(url.OriginalUrl); err != nil {
 			logger.Log.Error("grpc: batch create short url: invalid url", zap.Error(err))
-			return nil, status.Error(codes.InvalidArgument, "invalid url")
+			return nil, status.Error(codes.InvalidArgument, errMsgInvalidURL)
 		}
 
 		inputURLs[i] = repository.BatchURLInput{
@@ -92,14 +113,18 @@ func (s *ShortenerServer) BatchCreateShortURL(ctx context.Context, request *pb.B
 		}
 	}
 
-	// TODO: Add userID and auth.
-	storedURLs, err := s.repo.StoreBatch("1", s.cfg.BaseURL, inputURLs)
+	userID, err := auth.GetUserID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, errMsgUnauthenticated)
+	}
+
+	storedURLs, err := s.repo.StoreBatch(userID, s.cfg.BaseURL, inputURLs)
 	var cErr *repository.ConflictError
 	if errors.As(err, &cErr) {
 		return nil, status.Error(codes.AlreadyExists, cErr.ShortURL)
 	}
 	if err != nil {
-		return nil, status.Error(codes.Internal, "failed to create url")
+		return nil, status.Error(codes.Internal, errMsgFailedToCreate)
 	}
 
 	resURLs := make([]*pb.BatchCreateShortURLResponse_URLOutput, len(storedURLs))
@@ -115,64 +140,64 @@ func (s *ShortenerServer) BatchCreateShortURL(ctx context.Context, request *pb.B
 	}, nil
 }
 
-func (s *ShortenerServer) Ping(ctx context.Context, request *pb.PingRequest) (*pb.PingResponse, error) {
+func (s *ShortenerServer) Ping(_ context.Context, _ *pb.PingRequest) (*pb.PingResponse, error) {
 	err := s.repo.Ping()
 	if err != nil {
 		logger.Log.Error("grpc: failed to ping repository", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to ping")
+		return nil, status.Error(codes.Internal, errMsgFailedToPing)
 	}
 	return &pb.PingResponse{}, nil
 }
 
-func (s *ShortenerServer) GetShortURL(ctx context.Context, request *pb.GetShortURLRequest) (*pb.GetShortURLResponse, error) {
+func (s *ShortenerServer) GetShortURL(_ context.Context, request *pb.GetShortURLRequest) (*pb.GetShortURLResponse, error) {
 	shortURL := request.GetShortUrl()
 	url, err := s.repo.Get(shortURL)
 	if errors.Is(err, repository.ErrShortURLNotFound) {
 		logger.Log.Info("redirect: short url not found", zap.String("alias", shortURL))
-		return nil, status.Error(codes.NotFound, "not found")
+		return nil, status.Error(codes.NotFound, errMsgNotFound)
 	}
 	if errors.Is(err, repository.ErrURLDeleted) {
 		logger.Log.Info("redirect: url deleted", zap.String("alias", shortURL))
-		return nil, status.Error(codes.NotFound, "url has been deleted")
+		return nil, status.Error(codes.NotFound, errMsgURLDeleted)
 	}
 	if err != nil {
 		logger.Log.Error("grpc: get short url: failed to get url", zap.Error(err))
-		return nil, status.Error(codes.NotFound, "not found")
+		return nil, status.Error(codes.NotFound, errMsgNotFound)
 	}
 	return &pb.GetShortURLResponse{OriginalUrl: url}, nil
 }
 
-func (s *ShortenerServer) GetStats(ctx context.Context, request *pb.GetStatsRequest) (*pb.GetStatsResponse, error) {
+func (s *ShortenerServer) GetStats(ctx context.Context, _ *pb.GetStatsRequest) (*pb.GetStatsResponse, error) {
 	if s.cfg.TrustedSubnet == "" {
 		logger.Log.Warn("grpc: GetStats called but trusted subnet is not configured")
-		return nil, status.Error(codes.PermissionDenied, "access denied")
+		return nil, status.Error(codes.PermissionDenied, errMsgAccessDenied)
 	}
 
 	p, ok := peer.FromContext(ctx)
 	if !ok {
 		logger.Log.Error("grpc: failed to get peer from context")
-		return nil, status.Error(codes.PermissionDenied, "access denied")
+		return nil, status.Error(codes.PermissionDenied, errMsgAccessDenied)
 	}
 
 	tcpAddr, ok := p.Addr.(*net.TCPAddr)
 	if !ok {
 		logger.Log.Error("grpc: peer address is not TCP")
-		return nil, status.Error(codes.PermissionDenied, "access denied")
+		return nil, status.Error(codes.PermissionDenied, errMsgAccessDenied)
 	}
 
 	clientIP := tcpAddr.IP
 
-	if s.ipnet == nil || !s.ipnet.Contains(clientIP) {
+	if s.cfg.TrustedIPNet == nil || !s.cfg.TrustedIPNet.Contains(clientIP) {
 		logger.Log.Info("grpc: request IP is not in trusted subnet",
 			zap.String("ip", clientIP.String()),
 			zap.String("subnet", s.cfg.TrustedSubnet))
-		return nil, status.Error(codes.PermissionDenied, "access denied")
+		return nil, status.Error(codes.PermissionDenied, errMsgAccessDenied)
 	}
 
 	stats, err := s.repo.GetStats()
 	if err != nil {
 		logger.Log.Error("grpc: failed to get stats", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to get stats")
+		return nil, status.Error(codes.Internal, errMsgFailedToStats)
 	}
 
 	return &pb.GetStatsResponse{
@@ -181,16 +206,20 @@ func (s *ShortenerServer) GetStats(ctx context.Context, request *pb.GetStatsRequ
 	}, nil
 }
 
-func (s *ShortenerServer) ListShortURLs(ctx context.Context, request *pb.ListShortURLsRequest) (*pb.ListShortURLsResponse, error) {
-	// TODO: Add userID and auth.
-	urls, err := s.repo.GetAll("1", s.cfg.BaseURL)
+func (s *ShortenerServer) ListShortURLs(ctx context.Context, _ *pb.ListShortURLsRequest) (*pb.ListShortURLsResponse, error) {
+	userID, err := auth.GetUserID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, errMsgUnauthenticated)
+	}
+
+	urls, err := s.repo.GetAll(userID, s.cfg.BaseURL)
 	if errors.Is(err, repository.ErrUserHasNoData) {
-		logger.Log.Info("user don't have any urls", zap.String("user_id", "1"))
-		return nil, status.Error(codes.NotFound, "not found")
+		logger.Log.Info("user don't have any urls", zap.String("user_id", userID))
+		return nil, status.Error(codes.NotFound, errMsgNotFound)
 	}
 	if err != nil {
 		logger.Log.Error("grpc: list short urls: failed to get urls", zap.Error(err))
-		return nil, status.Error(codes.Internal, "failed to get urls")
+		return nil, status.Error(codes.Internal, errMsgFailedToGetURLs)
 	}
 
 	resURLs := make([]*pb.ListShortURLsResponse_URLItem, len(urls))
@@ -204,6 +233,28 @@ func (s *ShortenerServer) ListShortURLs(ctx context.Context, request *pb.ListSho
 	return &pb.ListShortURLsResponse{
 		Urls: resURLs,
 	}, nil
+}
+
+func (s *ShortenerServer) DeleteURLs(ctx context.Context, request *pb.DeleteURLsRequest) (*pb.DeleteURLsResponse, error) {
+	userID, err := auth.GetUserID(ctx)
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, errMsgUnauthenticated)
+	}
+
+	shortURLs := request.GetShortUrls()
+	if len(shortURLs) == 0 {
+		logger.Log.Warn("grpc: delete urls: empty list", zap.String("user_id", userID))
+		return &pb.DeleteURLsResponse{}, nil
+	}
+
+	err = s.repo.DeleteBatch(userID, shortURLs)
+	if err != nil {
+		logger.Log.Error("grpc: delete urls: failed to delete urls", zap.Error(err), zap.String("user_id", userID))
+		return nil, status.Error(codes.Internal, errMsgInternalError)
+	}
+
+	logger.Log.Info("grpc: delete urls: successfully deleted", zap.Int("count", len(shortURLs)), zap.String("user_id", userID))
+	return &pb.DeleteURLsResponse{}, nil
 }
 
 func (s *ShortenerServer) Shutdown() {

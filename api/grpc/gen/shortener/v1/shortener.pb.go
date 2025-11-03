@@ -525,6 +525,86 @@ func (x *ListShortURLsResponse) GetUrls() []*ListShortURLsResponse_URLItem {
 	return nil
 }
 
+type DeleteURLsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ShortUrls     []string               `protobuf:"bytes,1,rep,name=short_urls,json=shortUrls,proto3" json:"short_urls,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteURLsRequest) Reset() {
+	*x = DeleteURLsRequest{}
+	mi := &file_shortener_v1_shortener_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteURLsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteURLsRequest) ProtoMessage() {}
+
+func (x *DeleteURLsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_shortener_v1_shortener_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteURLsRequest.ProtoReflect.Descriptor instead.
+func (*DeleteURLsRequest) Descriptor() ([]byte, []int) {
+	return file_shortener_v1_shortener_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *DeleteURLsRequest) GetShortUrls() []string {
+	if x != nil {
+		return x.ShortUrls
+	}
+	return nil
+}
+
+type DeleteURLsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteURLsResponse) Reset() {
+	*x = DeleteURLsResponse{}
+	mi := &file_shortener_v1_shortener_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteURLsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteURLsResponse) ProtoMessage() {}
+
+func (x *DeleteURLsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_shortener_v1_shortener_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteURLsResponse.ProtoReflect.Descriptor instead.
+func (*DeleteURLsResponse) Descriptor() ([]byte, []int) {
+	return file_shortener_v1_shortener_proto_rawDescGZIP(), []int{13}
+}
+
 type BatchCreateShortURLRequest_URLInput struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cid           string                 `protobuf:"bytes,1,opt,name=cid,proto3" json:"cid,omitempty"`
@@ -535,7 +615,7 @@ type BatchCreateShortURLRequest_URLInput struct {
 
 func (x *BatchCreateShortURLRequest_URLInput) Reset() {
 	*x = BatchCreateShortURLRequest_URLInput{}
-	mi := &file_shortener_v1_shortener_proto_msgTypes[12]
+	mi := &file_shortener_v1_shortener_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -547,7 +627,7 @@ func (x *BatchCreateShortURLRequest_URLInput) String() string {
 func (*BatchCreateShortURLRequest_URLInput) ProtoMessage() {}
 
 func (x *BatchCreateShortURLRequest_URLInput) ProtoReflect() protoreflect.Message {
-	mi := &file_shortener_v1_shortener_proto_msgTypes[12]
+	mi := &file_shortener_v1_shortener_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -587,7 +667,7 @@ type BatchCreateShortURLResponse_URLOutput struct {
 
 func (x *BatchCreateShortURLResponse_URLOutput) Reset() {
 	*x = BatchCreateShortURLResponse_URLOutput{}
-	mi := &file_shortener_v1_shortener_proto_msgTypes[13]
+	mi := &file_shortener_v1_shortener_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -599,7 +679,7 @@ func (x *BatchCreateShortURLResponse_URLOutput) String() string {
 func (*BatchCreateShortURLResponse_URLOutput) ProtoMessage() {}
 
 func (x *BatchCreateShortURLResponse_URLOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_shortener_v1_shortener_proto_msgTypes[13]
+	mi := &file_shortener_v1_shortener_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -639,7 +719,7 @@ type ListShortURLsResponse_URLItem struct {
 
 func (x *ListShortURLsResponse_URLItem) Reset() {
 	*x = ListShortURLsResponse_URLItem{}
-	mi := &file_shortener_v1_shortener_proto_msgTypes[14]
+	mi := &file_shortener_v1_shortener_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -651,7 +731,7 @@ func (x *ListShortURLsResponse_URLItem) String() string {
 func (*ListShortURLsResponse_URLItem) ProtoMessage() {}
 
 func (x *ListShortURLsResponse_URLItem) ProtoReflect() protoreflect.Message {
-	mi := &file_shortener_v1_shortener_proto_msgTypes[14]
+	mi := &file_shortener_v1_shortener_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -715,14 +795,20 @@ const file_shortener_v1_shortener_proto_rawDesc = "" +
 	"\x04urls\x18\x01 \x03(\v2+.shortener.v1.ListShortURLsResponse.URLItemR\x04urls\x1aI\n" +
 	"\aURLItem\x12\x1b\n" +
 	"\tshort_url\x18\x01 \x01(\tR\bshortUrl\x12!\n" +
-	"\foriginal_url\x18\x02 \x01(\tR\voriginalUrl2\x9f\x04\n" +
+	"\foriginal_url\x18\x02 \x01(\tR\voriginalUrl\"2\n" +
+	"\x11DeleteURLsRequest\x12\x1d\n" +
+	"\n" +
+	"short_urls\x18\x01 \x03(\tR\tshortUrls\"\x14\n" +
+	"\x12DeleteURLsResponse2\xf2\x04\n" +
 	"\x10ShortenerService\x12]\n" +
 	"\x0eCreateShortURL\x12#.shortener.v1.CreateShortURLRequest\x1a$.shortener.v1.CreateShortURLResponse\"\x00\x12l\n" +
 	"\x13BatchCreateShortURL\x12(.shortener.v1.BatchCreateShortURLRequest\x1a).shortener.v1.BatchCreateShortURLResponse\"\x00\x12?\n" +
 	"\x04Ping\x12\x19.shortener.v1.PingRequest\x1a\x1a.shortener.v1.PingResponse\"\x00\x12T\n" +
 	"\vGetShortURL\x12 .shortener.v1.GetShortURLRequest\x1a!.shortener.v1.GetShortURLResponse\"\x00\x12K\n" +
 	"\bGetStats\x12\x1d.shortener.v1.GetStatsRequest\x1a\x1e.shortener.v1.GetStatsResponse\"\x00\x12Z\n" +
-	"\rListShortURLs\x12\".shortener.v1.ListShortURLsRequest\x1a#.shortener.v1.ListShortURLsResponse\"\x00B\xa4\x01\n" +
+	"\rListShortURLs\x12\".shortener.v1.ListShortURLsRequest\x1a#.shortener.v1.ListShortURLsResponse\"\x00\x12Q\n" +
+	"\n" +
+	"DeleteURLs\x12\x1f.shortener.v1.DeleteURLsRequest\x1a .shortener.v1.DeleteURLsResponse\"\x00B\xa4\x01\n" +
 	"\x10com.shortener.v1B\x0eShortenerProtoP\x01Z/github.com/aifedorov/shortener/gen/shortener/v1\xa2\x02\x03SXX\xaa\x02\fShortener.V1\xca\x02\fShortener\\V1\xe2\x02\x18Shortener\\V1\\GPBMetadata\xea\x02\rShortener::V1b\x06proto3"
 
 var (
@@ -737,7 +823,7 @@ func file_shortener_v1_shortener_proto_rawDescGZIP() []byte {
 	return file_shortener_v1_shortener_proto_rawDescData
 }
 
-var file_shortener_v1_shortener_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_shortener_v1_shortener_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_shortener_v1_shortener_proto_goTypes = []any{
 	(*CreateShortURLRequest)(nil),                 // 0: shortener.v1.CreateShortURLRequest
 	(*CreateShortURLResponse)(nil),                // 1: shortener.v1.CreateShortURLResponse
@@ -751,28 +837,32 @@ var file_shortener_v1_shortener_proto_goTypes = []any{
 	(*GetStatsResponse)(nil),                      // 9: shortener.v1.GetStatsResponse
 	(*ListShortURLsRequest)(nil),                  // 10: shortener.v1.ListShortURLsRequest
 	(*ListShortURLsResponse)(nil),                 // 11: shortener.v1.ListShortURLsResponse
-	(*BatchCreateShortURLRequest_URLInput)(nil),   // 12: shortener.v1.BatchCreateShortURLRequest.URLInput
-	(*BatchCreateShortURLResponse_URLOutput)(nil), // 13: shortener.v1.BatchCreateShortURLResponse.URLOutput
-	(*ListShortURLsResponse_URLItem)(nil),         // 14: shortener.v1.ListShortURLsResponse.URLItem
+	(*DeleteURLsRequest)(nil),                     // 12: shortener.v1.DeleteURLsRequest
+	(*DeleteURLsResponse)(nil),                    // 13: shortener.v1.DeleteURLsResponse
+	(*BatchCreateShortURLRequest_URLInput)(nil),   // 14: shortener.v1.BatchCreateShortURLRequest.URLInput
+	(*BatchCreateShortURLResponse_URLOutput)(nil), // 15: shortener.v1.BatchCreateShortURLResponse.URLOutput
+	(*ListShortURLsResponse_URLItem)(nil),         // 16: shortener.v1.ListShortURLsResponse.URLItem
 }
 var file_shortener_v1_shortener_proto_depIdxs = []int32{
-	12, // 0: shortener.v1.BatchCreateShortURLRequest.urls:type_name -> shortener.v1.BatchCreateShortURLRequest.URLInput
-	13, // 1: shortener.v1.BatchCreateShortURLResponse.urls:type_name -> shortener.v1.BatchCreateShortURLResponse.URLOutput
-	14, // 2: shortener.v1.ListShortURLsResponse.urls:type_name -> shortener.v1.ListShortURLsResponse.URLItem
+	14, // 0: shortener.v1.BatchCreateShortURLRequest.urls:type_name -> shortener.v1.BatchCreateShortURLRequest.URLInput
+	15, // 1: shortener.v1.BatchCreateShortURLResponse.urls:type_name -> shortener.v1.BatchCreateShortURLResponse.URLOutput
+	16, // 2: shortener.v1.ListShortURLsResponse.urls:type_name -> shortener.v1.ListShortURLsResponse.URLItem
 	0,  // 3: shortener.v1.ShortenerService.CreateShortURL:input_type -> shortener.v1.CreateShortURLRequest
 	2,  // 4: shortener.v1.ShortenerService.BatchCreateShortURL:input_type -> shortener.v1.BatchCreateShortURLRequest
 	4,  // 5: shortener.v1.ShortenerService.Ping:input_type -> shortener.v1.PingRequest
 	6,  // 6: shortener.v1.ShortenerService.GetShortURL:input_type -> shortener.v1.GetShortURLRequest
 	8,  // 7: shortener.v1.ShortenerService.GetStats:input_type -> shortener.v1.GetStatsRequest
 	10, // 8: shortener.v1.ShortenerService.ListShortURLs:input_type -> shortener.v1.ListShortURLsRequest
-	1,  // 9: shortener.v1.ShortenerService.CreateShortURL:output_type -> shortener.v1.CreateShortURLResponse
-	3,  // 10: shortener.v1.ShortenerService.BatchCreateShortURL:output_type -> shortener.v1.BatchCreateShortURLResponse
-	5,  // 11: shortener.v1.ShortenerService.Ping:output_type -> shortener.v1.PingResponse
-	7,  // 12: shortener.v1.ShortenerService.GetShortURL:output_type -> shortener.v1.GetShortURLResponse
-	9,  // 13: shortener.v1.ShortenerService.GetStats:output_type -> shortener.v1.GetStatsResponse
-	11, // 14: shortener.v1.ShortenerService.ListShortURLs:output_type -> shortener.v1.ListShortURLsResponse
-	9,  // [9:15] is the sub-list for method output_type
-	3,  // [3:9] is the sub-list for method input_type
+	12, // 9: shortener.v1.ShortenerService.DeleteURLs:input_type -> shortener.v1.DeleteURLsRequest
+	1,  // 10: shortener.v1.ShortenerService.CreateShortURL:output_type -> shortener.v1.CreateShortURLResponse
+	3,  // 11: shortener.v1.ShortenerService.BatchCreateShortURL:output_type -> shortener.v1.BatchCreateShortURLResponse
+	5,  // 12: shortener.v1.ShortenerService.Ping:output_type -> shortener.v1.PingResponse
+	7,  // 13: shortener.v1.ShortenerService.GetShortURL:output_type -> shortener.v1.GetShortURLResponse
+	9,  // 14: shortener.v1.ShortenerService.GetStats:output_type -> shortener.v1.GetStatsResponse
+	11, // 15: shortener.v1.ShortenerService.ListShortURLs:output_type -> shortener.v1.ListShortURLsResponse
+	13, // 16: shortener.v1.ShortenerService.DeleteURLs:output_type -> shortener.v1.DeleteURLsResponse
+	10, // [10:17] is the sub-list for method output_type
+	3,  // [3:10] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
@@ -789,7 +879,7 @@ func file_shortener_v1_shortener_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_shortener_v1_shortener_proto_rawDesc), len(file_shortener_v1_shortener_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

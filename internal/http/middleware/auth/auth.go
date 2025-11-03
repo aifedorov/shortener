@@ -13,11 +13,8 @@ import (
 	"github.com/aifedorov/shortener/internal/pkg/jwt"
 )
 
-// ContextKey represents a type for context keys used in authentication.
-type ContextKey string
-
 // UserIDKey is the context key used to store the user ID in request context.
-const UserIDKey ContextKey = "user_id"
+const UserIDKey = "user_id"
 
 // GetUserID extracts the user ID from the context.
 // Returns an error if user ID is not present in the context or is empty.
@@ -32,8 +29,6 @@ func GetUserID(ctx context.Context) (string, error) {
 var ErrUserIDNotFound = errors.New("user_id not found")
 
 const (
-	// tokenExp defines the JWT token expiration time.
-	tokenExp = time.Hour * 3
 	// cookieExp defines the cookie expiration time (24 hours).
 	cookieExp = time.Hour * 24
 	// tokenName is the name of the JWT cookie.
@@ -42,20 +37,20 @@ const (
 
 // Middleware provides JWT-based authentication middleware for HTTP handlers.
 type Middleware struct {
-	jwtManager *jwt.Manager
+	jwtService jwt.JWT
 }
 
 // NewMiddleware creates a new authentication middleware instance.
 // The secretKey is used for JWT token signing and validation.
-func NewMiddleware(secretKey string) *Middleware {
+func NewMiddleware(authService jwt.JWT) *Middleware {
 	return &Middleware{
-		jwtManager: jwt.NewManager(secretKey, tokenExp),
+		jwtService: authService,
 	}
 }
 
-// GetJWTManager returns the JWT manager instance for use in other components (e.g., gRPC interceptors).
-func (m *Middleware) GetJWTManager() *jwt.Manager {
-	return m.jwtManager
+// GetJWTService returns the JWT manager instance for use in other components (e.g., gRPC interceptors).
+func (m *Middleware) GetJWTService() jwt.JWT {
+	return m.jwtService
 }
 
 // JWTAuth provides JWT-based authentication middleware.
@@ -68,14 +63,14 @@ func (m *Middleware) JWTAuth(next http.Handler) http.Handler {
 
 			logger.Log.Debug("auth: creating new user_id")
 			userID := uuid.NewString()
-			setNewCookies(userID, m.jwtManager, w)
+			setNewCookies(userID, m.jwtService, w)
 
 			ctx := context.WithValue(r.Context(), UserIDKey, userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
-		userID, err := m.jwtManager.Verify(cookie.Value)
+		userID, err := m.jwtService.ParseWithUserID(cookie.Value)
 		if err != nil {
 			logger.Log.Error("auth: failed to get cookie", zap.String("name", tokenName), zap.Error(err))
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -87,7 +82,7 @@ func (m *Middleware) JWTAuth(next http.Handler) http.Handler {
 	})
 }
 
-func setNewCookies(userID string, jwtManager *jwt.Manager, w http.ResponseWriter) {
+func setNewCookies(userID string, jwtManager jwt.JWT, w http.ResponseWriter) {
 	logger.Log.Debug("auth: setting new cookies", zap.String("user_id", userID))
 	token, err := jwtManager.Generate(userID)
 	if err != nil {

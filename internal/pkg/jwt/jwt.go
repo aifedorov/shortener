@@ -17,24 +17,31 @@ var (
 	ErrInvalidSigningMethod = errors.New("unexpected signing method")
 )
 
+//go:generate mockgen -destination=../../mocks/jwt_mock.go -package=mocks github.com/aifedorov/shortener/internal/pkg/jwt JWT
+
+type JWT interface {
+	Generate(userID string) (string, error)
+	ParseWithUserID(tokenString string) (string, error)
+}
+
+type service struct {
+	secretKey string
+	tokenExp  time.Duration
+}
+
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID string
 }
 
-type Manager struct {
-	secretKey string
-	tokenExp  time.Duration
-}
-
-func NewManager(secretKey string, tokenExp time.Duration) *Manager {
-	return &Manager{
+func NewService(secretKey string, tokenExp time.Duration) JWT {
+	return &service{
 		secretKey: secretKey,
 		tokenExp:  tokenExp,
 	}
 }
 
-func (m *Manager) Generate(userID string) (string, error) {
+func (m *service) Generate(userID string) (string, error) {
 	logger.Log.Debug("jwt: generating token", zap.String("user_id", userID))
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
@@ -53,7 +60,7 @@ func (m *Manager) Generate(userID string) (string, error) {
 	return tokenString, nil
 }
 
-func (m *Manager) Verify(tokenString string) (string, error) {
+func (m *service) ParseWithUserID(tokenString string) (string, error) {
 	logger.Log.Debug("jwt: verifying token")
 
 	if tokenString == "" {

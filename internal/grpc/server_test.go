@@ -99,10 +99,12 @@ func TestShortenerServer_CreateShortURL(t *testing.T) {
 
 			mockRepo := mocks.NewMockRepository(ctrl)
 			mockChecker := mocks.NewMockURLChecker(ctrl)
+			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo, mockChecker)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker)
-			resp, err := server.CreateShortURL(context.Background(), tt.request)
+			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			ctx := context.WithValue(context.Background(), "userID", "1")
+			resp, err := server.CreateShortURL(ctx, tt.request)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -230,10 +232,12 @@ func TestShortenerServer_BatchCreateShortURL(t *testing.T) {
 
 			mockRepo := mocks.NewMockRepository(ctrl)
 			mockChecker := mocks.NewMockURLChecker(ctrl)
+			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo, mockChecker)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker)
-			resp, err := server.BatchCreateShortURL(context.Background(), tt.request)
+			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			ctx := context.WithValue(context.Background(), "userID", "1")
+			resp, err := server.BatchCreateShortURL(ctx, tt.request)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -317,10 +321,12 @@ func TestShortenerServer_GetShortURL(t *testing.T) {
 
 			mockRepo := mocks.NewMockRepository(ctrl)
 			mockChecker := mocks.NewMockURLChecker(ctrl)
+			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker)
-			resp, err := server.GetShortURL(context.Background(), tt.request)
+			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			ctx := context.WithValue(context.Background(), "userID", "1")
+			resp, err := server.GetShortURL(ctx, tt.request)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -366,10 +372,12 @@ func TestShortenerServer_Ping(t *testing.T) {
 
 			mockRepo := mocks.NewMockRepository(ctrl)
 			mockChecker := mocks.NewMockURLChecker(ctrl)
+			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker)
-			resp, err := server.Ping(context.Background(), &pb.PingRequest{})
+			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			ctx := context.WithValue(context.Background(), "userID", "1")
+			resp, err := server.Ping(ctx, &pb.PingRequest{})
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -447,10 +455,12 @@ func TestShortenerServer_ListShortURLs(t *testing.T) {
 
 			mockRepo := mocks.NewMockRepository(ctrl)
 			mockChecker := mocks.NewMockURLChecker(ctrl)
+			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker)
-			resp, err := server.ListShortURLs(context.Background(), &pb.ListShortURLsRequest{})
+			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			ctx := context.WithValue(context.Background(), "userID", "1")
+			resp, err := server.ListShortURLs(ctx, &pb.ListShortURLsRequest{})
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -573,13 +583,14 @@ func TestShortenerServer_GetStats(t *testing.T) {
 
 			mockRepo := mocks.NewMockRepository(ctrl)
 			mockChecker := mocks.NewMockURLChecker(ctrl)
+			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(tt.cfg, mockRepo, mockChecker)
+			server := NewShortenerServer(tt.cfg, mockRepo, mockChecker, mockJWT)
 			if tt.cfg.TrustedSubnet != "" {
 				_, ipnet, err := net.ParseCIDR(tt.cfg.TrustedSubnet)
 				if err == nil {
-					server.ipnet = ipnet
+					tt.cfg.TrustedIPNet = ipnet
 				}
 			}
 			resp, err := server.GetStats(tt.ctx, &pb.GetStatsRequest{})
@@ -599,6 +610,84 @@ func TestShortenerServer_GetStats(t *testing.T) {
 	}
 }
 
+func TestShortenerServer_DeleteURLs(t *testing.T) {
+	tests := []struct {
+		name      string
+		request   *pb.DeleteURLsRequest
+		setupMock func(*mocks.MockRepository)
+		wantCode  codes.Code
+		wantErr   bool
+	}{
+		{
+			name: "success - single url",
+			request: &pb.DeleteURLsRequest{
+				ShortUrls: []string{"abc123"},
+			},
+			setupMock: func(repo *mocks.MockRepository) {
+				repo.EXPECT().DeleteBatch("1", []string{"abc123"}).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "success - multiple urls",
+			request: &pb.DeleteURLsRequest{
+				ShortUrls: []string{"abc123", "def456", "ghi789"},
+			},
+			setupMock: func(repo *mocks.MockRepository) {
+				repo.EXPECT().DeleteBatch("1", []string{"abc123", "def456", "ghi789"}).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty list",
+			request: &pb.DeleteURLsRequest{
+				ShortUrls: []string{},
+			},
+			setupMock: func(repo *mocks.MockRepository) {
+				// No expectations - should return early
+			},
+			wantErr: false,
+		},
+		{
+			name: "repository error",
+			request: &pb.DeleteURLsRequest{
+				ShortUrls: []string{"abc123"},
+			},
+			setupMock: func(repo *mocks.MockRepository) {
+				repo.EXPECT().DeleteBatch("1", []string{"abc123"}).Return(errors.New("database error"))
+			},
+			wantCode: codes.Internal,
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockRepo := mocks.NewMockRepository(ctrl)
+			mockChecker := mocks.NewMockURLChecker(ctrl)
+			mockJWT := mocks.NewMockJWT(ctrl)
+			tt.setupMock(mockRepo)
+
+			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			ctx := context.WithValue(context.Background(), "userID", "1")
+			resp, err := server.DeleteURLs(ctx, tt.request)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				st, ok := status.FromError(err)
+				require.True(t, ok)
+				assert.Equal(t, tt.wantCode, st.Code())
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+			}
+		})
+	}
+}
+
 func TestNewShortenerServer(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -606,8 +695,9 @@ func TestNewShortenerServer(t *testing.T) {
 	cfg := newMockConfig()
 	mockRepo := mocks.NewMockRepository(ctrl)
 	mockChecker := mocks.NewMockURLChecker(ctrl)
+	mockJWT := mocks.NewMockJWT(ctrl)
 
-	server := NewShortenerServer(cfg, mockRepo, mockChecker)
+	server := NewShortenerServer(cfg, mockRepo, mockChecker, mockJWT)
 
 	assert.NotNil(t, server)
 	assert.Equal(t, cfg, server.cfg)

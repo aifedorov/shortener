@@ -9,16 +9,21 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/aifedorov/shortener/internal/config"
 	grpcserver "github.com/aifedorov/shortener/internal/grpc"
 	httpserver "github.com/aifedorov/shortener/internal/http"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
+	"github.com/aifedorov/shortener/internal/pkg/jwt"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 )
+
+// tokenExp defines the JWT token expiration time.
+const tokenExp = time.Hour * 3
 
 var (
 	buildVersion string
@@ -53,9 +58,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer stop()
 
+	authService := jwt.NewService(cfg.SecretKey, tokenExp)
 	repo := repository.NewRepository(ctx, cfg)
-	hSrv := httpserver.NewServer(ctx, cfg, repo)
-	gSrv := grpcserver.NewShortenerServer(cfg, repo, validate.NewService())
+	hSrv := httpserver.NewServer(ctx, cfg, repo, authService)
+	gSrv := grpcserver.NewShortenerServer(cfg, repo, validate.NewService(), authService)
 
 	var wg sync.WaitGroup
 

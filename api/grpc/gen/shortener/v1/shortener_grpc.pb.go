@@ -25,6 +25,7 @@ const (
 	ShortenerService_GetShortURL_FullMethodName         = "/shortener.v1.ShortenerService/GetShortURL"
 	ShortenerService_GetStats_FullMethodName            = "/shortener.v1.ShortenerService/GetStats"
 	ShortenerService_ListShortURLs_FullMethodName       = "/shortener.v1.ShortenerService/ListShortURLs"
+	ShortenerService_DeleteURLs_FullMethodName          = "/shortener.v1.ShortenerService/DeleteURLs"
 )
 
 // ShortenerServiceClient is the client API for ShortenerService service.
@@ -37,6 +38,7 @@ type ShortenerServiceClient interface {
 	GetShortURL(ctx context.Context, in *GetShortURLRequest, opts ...grpc.CallOption) (*GetShortURLResponse, error)
 	GetStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*GetStatsResponse, error)
 	ListShortURLs(ctx context.Context, in *ListShortURLsRequest, opts ...grpc.CallOption) (*ListShortURLsResponse, error)
+	DeleteURLs(ctx context.Context, in *DeleteURLsRequest, opts ...grpc.CallOption) (*DeleteURLsResponse, error)
 }
 
 type shortenerServiceClient struct {
@@ -107,6 +109,16 @@ func (c *shortenerServiceClient) ListShortURLs(ctx context.Context, in *ListShor
 	return out, nil
 }
 
+func (c *shortenerServiceClient) DeleteURLs(ctx context.Context, in *DeleteURLsRequest, opts ...grpc.CallOption) (*DeleteURLsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteURLsResponse)
+	err := c.cc.Invoke(ctx, ShortenerService_DeleteURLs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ShortenerServiceServer is the server API for ShortenerService service.
 // All implementations must embed UnimplementedShortenerServiceServer
 // for forward compatibility.
@@ -117,6 +129,7 @@ type ShortenerServiceServer interface {
 	GetShortURL(context.Context, *GetShortURLRequest) (*GetShortURLResponse, error)
 	GetStats(context.Context, *GetStatsRequest) (*GetStatsResponse, error)
 	ListShortURLs(context.Context, *ListShortURLsRequest) (*ListShortURLsResponse, error)
+	DeleteURLs(context.Context, *DeleteURLsRequest) (*DeleteURLsResponse, error)
 	mustEmbedUnimplementedShortenerServiceServer()
 }
 
@@ -144,6 +157,9 @@ func (UnimplementedShortenerServiceServer) GetStats(context.Context, *GetStatsRe
 }
 func (UnimplementedShortenerServiceServer) ListShortURLs(context.Context, *ListShortURLsRequest) (*ListShortURLsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListShortURLs not implemented")
+}
+func (UnimplementedShortenerServiceServer) DeleteURLs(context.Context, *DeleteURLsRequest) (*DeleteURLsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteURLs not implemented")
 }
 func (UnimplementedShortenerServiceServer) mustEmbedUnimplementedShortenerServiceServer() {}
 func (UnimplementedShortenerServiceServer) testEmbeddedByValue()                          {}
@@ -274,6 +290,24 @@ func _ShortenerService_ListShortURLs_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ShortenerService_DeleteURLs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteURLsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ShortenerServiceServer).DeleteURLs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ShortenerService_DeleteURLs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ShortenerServiceServer).DeleteURLs(ctx, req.(*DeleteURLsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ShortenerService_ServiceDesc is the grpc.ServiceDesc for ShortenerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -304,6 +338,10 @@ var ShortenerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListShortURLs",
 			Handler:    _ShortenerService_ListShortURLs_Handler,
+		},
+		{
+			MethodName: "DeleteURLs",
+			Handler:    _ShortenerService_DeleteURLs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -7,6 +7,7 @@ import (
 
 	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/compress"
+	"github.com/aifedorov/shortener/internal/pkg/jwt"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -41,6 +42,8 @@ type Server struct {
 	config *config.Config
 	// repo is the repository interface for data persistence.
 	repo repository.Repository
+	// authService is the JWT authentication service.
+	authService jwt.JWT
 	// ctx is the background context for the server.
 	ctx context.Context
 	// srv is the HTTP server instance.
@@ -49,14 +52,15 @@ type Server struct {
 
 // NewServer creates a new HTTP server instance with the provided configuration and repository.
 // The server is initialized with Chi router, URL validation service, and background context.
-func NewServer(ctx context.Context, cfg *config.Config, repo repository.Repository) *Server {
+func NewServer(ctx context.Context, cfg *config.Config, repo repository.Repository, authService jwt.JWT) *Server {
 	return &Server{
-		config: cfg,
-		repo:   repo,
-		ctx:    ctx,
+		config:      cfg,
+		repo:        repo,
+		authService: authService,
+		ctx:         ctx,
 		srv: &http.Server{
 			Addr:    cfg.RunAddr,
-			Handler: newRouter(cfg, repo, validate.NewService()),
+			Handler: newRouter(cfg, repo, validate.NewService(), authService),
 		},
 	}
 }
@@ -84,7 +88,7 @@ func (s *Server) Shutdown() error {
 }
 
 // NewRouter create a new roture then registers all HTTP route handlers and middleware.
-func newRouter(cfg *config.Config, repo repository.Repository, urlChecker validate.URLChecker) *chi.Mux {
+func newRouter(cfg *config.Config, repo repository.Repository, urlChecker validate.URLChecker, authService jwt.JWT) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(chimiddleware.AllowContentType(supportedContentTypes...))
@@ -92,7 +96,7 @@ func newRouter(cfg *config.Config, repo repository.Repository, urlChecker valida
 	router.Use(logger.RequestLogger)
 	router.Use(logger.ResponseLogger)
 
-	m := auth.NewMiddleware(cfg.SecretKey)
+	m := auth.NewMiddleware(authService)
 	router.Use(m.JWTAuth)
 
 	router.Post("/", handlers.NewSavePlainTextHandler(cfg, repo, urlChecker))

@@ -1,10 +1,12 @@
 package config
 
 import (
+	"net"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -130,6 +132,14 @@ func TestLoadConfig(t *testing.T) {
 				assert.Equal(t, tt.expectedConfig.EnableHTTPS, cfg.EnableHTTPS)
 				assert.Equal(t, tt.expectedConfig.SecretKey, cfg.SecretKey)
 				assert.Equal(t, tt.expectedConfig.TrustedSubnet, cfg.TrustedSubnet)
+
+				// ParseWithUserID TrustedIPNet is parsed correctly
+				if tt.expectedConfig.TrustedSubnet != "" {
+					require.NotNil(t, cfg.TrustedIPNet, "TrustedIPNet should be parsed when TrustedSubnet is set")
+					_, expectedIPNet, err := net.ParseCIDR(tt.expectedConfig.TrustedSubnet)
+					require.NoError(t, err)
+					assert.Equal(t, expectedIPNet.String(), cfg.TrustedIPNet.String())
+				}
 			}
 		})
 	}
@@ -435,12 +445,13 @@ func TestValidateConfig(t *testing.T) {
 				RunAddr:         ":8080",
 				GRPCAddr:        ":9090",
 				BaseURL:         "http://localhost:8080",
-				LogLevel:        "invalid",
+				LogLevel:        "info",
 				FileStoragePath: "/tmp/storage",
 				DSN:             "postgres://test",
 				SecretKey:       "secret",
 				TrustedSubnet:   "127.0.0.1/32",
 			},
+			expectedError: false,
 		},
 	}
 
@@ -452,6 +463,13 @@ func TestValidateConfig(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+				// ParseWithUserID TrustedIPNet is parsed when TrustedSubnet is set
+				if tt.config.TrustedSubnet != "" {
+					require.NotNil(t, tt.config.TrustedIPNet, "TrustedIPNet should be parsed when TrustedSubnet is valid")
+					_, expectedIPNet, err := net.ParseCIDR(tt.config.TrustedSubnet)
+					require.NoError(t, err)
+					assert.Equal(t, expectedIPNet.String(), tt.config.TrustedIPNet.String())
+				}
 			}
 		})
 	}

@@ -31,14 +31,7 @@ func NewStatsHandler(cfg *config.Config, repo repository.Repository) http.Handle
 			return
 		}
 
-		_, ipnet, err := net.ParseCIDR(cfg.TrustedSubnet)
-		if err != nil {
-			logger.Log.Error("stats: failed to parse trusted subnet", zap.Error(err))
-			http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-			return
-		}
-
-		if !ipnet.Contains(rIP) {
+		if cfg.TrustedIPNet == nil || !cfg.TrustedIPNet.Contains(rIP) {
 			logger.Log.Info("stats: request IP is not in trusted subnet",
 				zap.String("ip", rIP.String()),
 				zap.String("subnet", cfg.TrustedSubnet))

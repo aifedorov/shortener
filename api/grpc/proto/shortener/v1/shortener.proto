@@ -59,6 +59,12 @@ message ListShortURLsResponse {
   repeated URLItem urls = 1;
 }
 
+message DeleteURLsRequest {
+  repeated string short_urls = 1;
+}
+
+message DeleteURLsResponse {}
+
 service ShortenerService {
   rpc CreateShortURL(CreateShortURLRequest) returns (CreateShortURLResponse) {}
   rpc BatchCreateShortURL(BatchCreateShortURLRequest) returns (BatchCreateShortURLResponse) {}
@@ -66,4 +72,5 @@ service ShortenerService {
   rpc GetShortURL(GetShortURLRequest) returns (GetShortURLResponse) {}
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {}
   rpc ListShortURLs(ListShortURLsRequest) returns (ListShortURLsResponse) {}
+  rpc DeleteURLs(DeleteURLsRequest) returns (DeleteURLsResponse) {}
 }

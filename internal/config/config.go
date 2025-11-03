@@ -45,6 +45,8 @@ type Config struct {
 	ConfigPath string `json:"-"`
 	// TrustedSubnet is the subnet allowed to access the API.
 	TrustedSubnet string `json:"trusted_subnet"`
+	// TrustedIPNet is the parsed CIDR network from TrustedSubnet.
+	TrustedIPNet *net.IPNet `json:"-"`
 }
 
 // LoadConfig parses command line flags, environment variables to populate the configuration, then reads the JSON config file.
@@ -272,9 +274,11 @@ func validateConfig(cfg *Config) error {
 		return errors.New("secret key is empty")
 	}
 	if len(cfg.TrustedSubnet) != 0 {
-		if _, _, err := net.ParseCIDR(cfg.TrustedSubnet); err != nil {
+		_, ipnet, err := net.ParseCIDR(cfg.TrustedSubnet)
+		if err != nil {
 			return fmt.Errorf("trusted subnet is invalid: %w", err)
 		}
+		cfg.TrustedIPNet = ipnet
 	}
 	return nil
 }

@@ -23,15 +23,17 @@ func TestServer_Integration(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
+		mockJWT := mocks.NewMockJWT(ctrl)
 
 		// Setup expectations
+		mockJWT.EXPECT().Generate(gomock.Any()).Return("mock-jwt-token", nil).AnyTimes()
 		mockRepo.EXPECT().Store(gomock.Any(), gomock.Any(), "https://example.com").Return("http://localhost:8080/abc123", nil).Times(2)
 		mockRepo.EXPECT().GetAll(gomock.Any(), gomock.Any()).Return([]repository.URLOutput{
 			{ShortURL: "http://localhost:8080/abc123", OriginalURL: "https://example.com"},
 		}, nil)
 		mockRepo.EXPECT().Ping().Return(nil)
 
-		server := NewServer(context.Background(), newMockConfig(), mockRepo)
+		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT)
 
 		userID := uuid.NewString()
 		ctx := context.WithValue(context.Background(), auth.UserIDKey, userID)
@@ -68,7 +70,8 @@ func TestServer_Integration(t *testing.T) {
 
 		cfg := newMockConfig()
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(context.Background(), cfg, mockRepo)
+		mockJWT := mocks.NewMockJWT(ctrl)
+		server := NewServer(context.Background(), cfg, mockRepo, mockJWT)
 
 		assert.NotNil(t, server)
 		assert.Equal(t, cfg, server.config)
@@ -80,7 +83,9 @@ func TestServer_Integration(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(context.Background(), newMockConfig(), mockRepo)
+		mockJWT := mocks.NewMockJWT(ctrl)
+		// JWT middleware won't be reached because Content-Type middleware returns error first
+		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT)
 
 		// Test without user ID (should return unsupported media type since no Content-Type header)
 		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com"))
@@ -97,8 +102,10 @@ func TestServer_ErrorHandling(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
+		mockJWT := mocks.NewMockJWT(ctrl)
+		mockJWT.EXPECT().Generate(gomock.Any()).Return("mock-jwt-token", nil)
 		mockRepo.EXPECT().Get("nonexistent").Return("", repository.ErrShortURLNotFound)
-		server := NewServer(context.Background(), newMockConfig(), mockRepo)
+		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT)
 
 		req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
 		res := executeRequest(req, server)
@@ -110,7 +117,9 @@ func TestServer_ErrorHandling(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(context.Background(), newMockConfig(), mockRepo)
+		mockJWT := mocks.NewMockJWT(ctrl)
+		mockJWT.EXPECT().Generate(gomock.Any()).Return("mock-jwt-token", nil)
+		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT)
 
 		req := httptest.NewRequest(http.MethodPut, "/", nil)
 		res := executeRequest(req, server)

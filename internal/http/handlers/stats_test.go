@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -218,6 +219,14 @@ func TestNewStatsHandler(t *testing.T) {
 			cfg := &config.Config{
 				BaseURL:       "http://localhost:8080",
 				TrustedSubnet: tt.trustedSubnet,
+			}
+
+			// Parse the trusted subnet into IPNet if provided
+			if tt.trustedSubnet != "" {
+				_, ipnet, err := net.ParseCIDR(tt.trustedSubnet)
+				if err == nil {
+					cfg.TrustedIPNet = ipnet
+				}
 			}
 
 			handler := NewStatsHandler(cfg, mockRepo)
