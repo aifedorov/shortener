@@ -14,24 +14,30 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ContextKey is a custom type for context keys to avoid collisions
+type ContextKey string
+
 const (
-	jwyKey    = "jwt"
-	userIDKey = "userID"
+	jwyKey = "jwt"
+	// UserIDKey is the context key for storing user ID
+	UserIDKey = ContextKey("userID")
 )
 
-// Public methods that don't require authentication
+// For backward compatibility in this package
+const userIDKey = UserIDKey
+
 var publicMethods = map[string]bool{
 	"/shortener.v1.ShortenerService/Ping":        true,
 	"/shortener.v1.ShortenerService/GetShortURL": true,
 	"/shortener.v1.ShortenerService/GetStats":    true,
 }
 
-var ErrUserIDNotFound = errors.New("user_id not found")
+var errUserIDNotFound = errors.New("user_id not found")
 
 func GetUserID(ctx context.Context) (string, error) {
 	userID, ok := ctx.Value(userIDKey).(string)
 	if !ok {
-		return "", ErrUserIDNotFound
+		return "", errUserIDNotFound
 	}
 	return userID, nil
 }
@@ -52,7 +58,6 @@ func (i *Interceptor) UnaryAuthInterceptor(
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
 ) (interface{}, error) {
-	// Check if the method is public
 	if publicMethods[info.FullMethod] {
 		logger.Log.Debug("auth: public method, skipping authentication",
 			zap.String("method", info.FullMethod))

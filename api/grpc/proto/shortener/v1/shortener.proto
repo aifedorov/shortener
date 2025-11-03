@@ -4,73 +4,170 @@ package shortener.v1;
 
 option go_package = "github.com/aifedorov/shortener/gen/shortener/v1";
 
+// CreateShortURLRequest contains the URL to be shortened.
 message CreateShortURLRequest {
+  // url is the original URL to shorten (must be valid HTTP/HTTPS URL)
   string url = 1;
 }
 
+// CreateShortURLResponse contains the generated short URL.
 message CreateShortURLResponse {
+  // short_url is the complete shortened URL (e.g., http://localhost:8080/abc123)
   string short_url = 1;
 }
 
+// BatchCreateShortURLRequest contains multiple URLs to be shortened in a single request.
 message BatchCreateShortURLRequest {
+  // URLInput represents a single URL with its correlation ID.
   message URLInput {
+    // cid is the correlation ID to match input with output
     string cid = 1;
+    // original_url is the URL to shorten
     string original_url = 2;
   }
 
+  // urls is the list of URLs to shorten (can contain multiple items)
   repeated URLInput urls = 1;
 }
 
+// BatchCreateShortURLResponse contains the shortened URLs with their correlation IDs.
 message BatchCreateShortURLResponse {
+  // URLOutput represents a shortened URL with its correlation ID.
   message URLOutput {
+    // cid is the correlation ID matching the input
     string cid = 1;
+    // short_url is the complete shortened URL
     string short_url = 2;
   }
+  // urls is the list of shortened URLs
   repeated URLOutput urls = 1;
 }
 
+// PingRequest is empty - health check doesn't require parameters.
 message PingRequest {}
 
+// PingResponse is empty - success is indicated by absence of error.
 message PingResponse {}
 
+// GetShortURLRequest contains the short URL alias to look up.
 message GetShortURLRequest {
+  // short_url is the alias part of the URL (e.g., "abc123" from http://host/abc123)
   string short_url = 1;
 }
 
+// GetShortURLResponse contains the original URL.
 message GetShortURLResponse {
+  // original_url is the full original URL that was shortened
   string original_url = 1;
 }
 
+// GetStatsRequest is empty - requires trusted IP authentication.
 message GetStatsRequest {}
 
+// GetStatsResponse contains service-wide statistics.
 message GetStatsResponse {
+  // urls is the total number of shortened URLs in the system
   uint64 urls = 1;
+  // users is the total number of unique users
   uint64 users = 2;
 }
 
+// ListShortURLsRequest is empty - returns URLs for authenticated user.
 message ListShortURLsRequest {}
 
+// ListShortURLsResponse contains all URLs belonging to the authenticated user.
 message ListShortURLsResponse {
+  // URLItem represents a single URL entry.
   message URLItem {
+    // short_url is the complete shortened URL
     string short_url = 1;
+    // original_url is the original URL
     string original_url = 2;
   }
 
+  // urls is the list of user's URLs
   repeated URLItem urls = 1;
 }
 
+// DeleteURLsRequest contains the list of short URLs to delete.
 message DeleteURLsRequest {
+  // short_urls is the list of URL aliases to delete (soft delete)
   repeated string short_urls = 1;
 }
 
+// DeleteURLsResponse is empty - success is indicated by absence of error.
 message DeleteURLsResponse {}
 
+// ShortenerService provides URL shortening and management operations.
+//
+// Authentication:
+//   - JWT tokens are passed via metadata with key "jwt"
+//   - Public methods (Ping, GetShortURL, GetStats) don't require authentication
+//   - Private methods require valid JWT token
+//
+// Error Codes:
+//   - InvalidArgument: Invalid URL or parameters
+//   - Unauthenticated: Missing or invalid JWT
+//   - NotFound: URL not found or deleted
+//   - AlreadyExists: URL already exists (conflict)
+//   - PermissionDenied: Access denied (e.g., IP restriction)
+//   - Internal: Server error
 service ShortenerService {
+  // CreateShortURL creates a new short URL for the given original URL.
+  // Requires authentication via JWT token.
+  //
+  // Returns:
+  //   - AlreadyExists if URL already exists for this user
+  //   - InvalidArgument if URL is invalid
   rpc CreateShortURL(CreateShortURLRequest) returns (CreateShortURLResponse) {}
+
+  // BatchCreateShortURL creates multiple short URLs in a single request.
+  // Requires authentication via JWT token.
+  //
+  // All URLs must be valid, otherwise the entire request fails.
+  //
+  // Returns:
+  //   - AlreadyExists if any URL already exists
+  //   - InvalidArgument if any URL is invalid
   rpc BatchCreateShortURL(BatchCreateShortURLRequest) returns (BatchCreateShortURLResponse) {}
+
+  // Ping checks if the service and database are healthy.
+  // This is a public method (no authentication required).
+  //
+  // Returns:
+  //   - Internal if database connection fails
   rpc Ping(PingRequest) returns (PingResponse) {}
+
+  // GetShortURL retrieves the original URL for a given short URL.
+  // This is a public method (no authentication required).
+  //
+  // Returns:
+  //   - NotFound if short URL doesn't exist or was deleted
   rpc GetShortURL(GetShortURLRequest) returns (GetShortURLResponse) {}
+
+  // GetStats returns service-wide statistics (total URLs and users).
+  // This is a public method but requires the client IP to be in the trusted subnet.
+  //
+  // Returns:
+  //   - PermissionDenied if IP is not in trusted subnet or subnet not configured
+  //   - Internal if database query fails
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {}
+
+  // ListShortURLs returns all URLs belonging to the authenticated user.
+  // Requires authentication via JWT token.
+  //
+  // Returns:
+  //   - NotFound if user has no URLs
+  //   - Internal if database query fails
   rpc ListShortURLs(ListShortURLsRequest) returns (ListShortURLsResponse) {}
+
+  // DeleteURLs performs a soft delete of the specified URLs.
+  // Requires authentication via JWT token.
+  // Only URLs belonging to the authenticated user can be deleted.
+  //
+  // Empty list is accepted and returns success.
+  //
+  // Returns:
+  //   - Internal if database operation fails
   rpc DeleteURLs(DeleteURLsRequest) returns (DeleteURLsResponse) {}
 }

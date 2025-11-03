@@ -13,8 +13,11 @@ import (
 	"github.com/aifedorov/shortener/internal/pkg/jwt"
 )
 
+// ContextKey is a custom type for context keys to avoid collisions
+type ContextKey string
+
 // UserIDKey is the context key used to store the user ID in request context.
-const UserIDKey = "user_id"
+const UserIDKey = ContextKey("user_id")
 
 // GetUserID extracts the user ID from the context.
 // Returns an error if user ID is not present in the context or is empty.
