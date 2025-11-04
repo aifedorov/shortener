@@ -87,7 +87,7 @@
 // # Middleware
 //
 // The server uses the following interceptors:
-//   - UnaryAuthInterceptor: JWT authentication and user ID injection
+//   - UnaryIPCheckInterceptor: JWT authentication and user ID injection
 //
 // Auth interceptor flow:
 //  1. Check if method is public (skip auth if true)

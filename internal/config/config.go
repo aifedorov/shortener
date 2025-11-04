@@ -115,31 +115,32 @@ func LoadConfig() (*Config, error) {
 //nolint:cyclop
 func parseEnvs() (*Config, error) {
 	cfg := &Config{}
-	if envRunAddr := os.Getenv("SERVER_ADDRESS"); envRunAddr != "" {
+
+	if envRunAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
 		cfg.RunAddr = envRunAddr
 	}
 
-	if envGRPCAddr := os.Getenv("GRPC_ADDRESS"); envGRPCAddr != "" {
+	if envGRPCAddr, ok := os.LookupEnv("GRPC_ADDRESS"); ok {
 		cfg.GRPCAddr = envGRPCAddr
 	}
 
-	if envShortBaseURL := os.Getenv("BASE_URL"); envShortBaseURL != "" {
+	if envShortBaseURL, ok := os.LookupEnv("BASE_URL"); ok {
 		cfg.BaseURL = envShortBaseURL
 	}
 
-	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
+	if envLogLevel, ok := os.LookupEnv("LOG_LEVEL"); ok {
 		cfg.LogLevel = envLogLevel
 	}
 
-	if envFileStoragePath := os.Getenv("FILE_STORAGE_PATH"); envFileStoragePath != "" {
+	if envFileStoragePath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		cfg.FileStoragePath = envFileStoragePath
 	}
 
-	if envDSN := os.Getenv("DATABASE_DSN"); envDSN != "" {
+	if envDSN, ok := os.LookupEnv("DATABASE_DSN"); ok {
 		cfg.DSN = envDSN
 	}
 
-	if envEnableHTTPS := os.Getenv("ENABLE_HTTPS"); envEnableHTTPS != "" {
+	if envEnableHTTPS, ok := os.LookupEnv("ENABLE_HTTPS"); ok {
 		val, err := strconv.ParseBool(envEnableHTTPS)
 		if err != nil {
 			return nil, fmt.Errorf("invalid ENABLE_HTTPS value '%s': %w", envEnableHTTPS, err)
@@ -147,15 +148,15 @@ func parseEnvs() (*Config, error) {
 		cfg.EnableHTTPS = val
 	}
 
-	if envConfigPath := os.Getenv("CONFIG"); envConfigPath != "" {
+	if envConfigPath, ok := os.LookupEnv("CONFIG"); ok {
 		cfg.ConfigPath = envConfigPath
 	}
 
-	if envTrustedSubnet := os.Getenv("TRUSTED_SUBNET"); envTrustedSubnet != "" {
+	if envTrustedSubnet, ok := os.LookupEnv("TRUSTED_SUBNET"); ok {
 		cfg.TrustedSubnet = envTrustedSubnet
 	}
 
-	if secretKey := os.Getenv("SECRET_KEY"); secretKey != "" {
+	if secretKey, ok := os.LookupEnv("SECRET_KEY"); ok {
 		cfg.SecretKey = secretKey
 	}
 

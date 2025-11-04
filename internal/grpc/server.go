@@ -9,6 +9,7 @@ import (
 	pb "github.com/aifedorov/shortener/api/grpc/gen/shortener/v1"
 	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/grpc/middleware/auth"
+	"github.com/aifedorov/shortener/internal/grpc/middleware/ipcheck"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/pkg/jwt"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
@@ -16,7 +17,6 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
@@ -29,7 +29,6 @@ const (
 	errMsgUnauthenticated = "unauthenticated"
 	errMsgNotFound        = "not found"
 	errMsgURLDeleted      = "url has been deleted"
-	errMsgAccessDenied    = "access denied"
 	errMsgFailedToCreate  = "failed to create url"
 	errMsgFailedToPing    = "failed to ping"
 	errMsgFailedToGetURLs = "failed to get urls"
@@ -62,9 +61,13 @@ func (s *ShortenerServer) Run() error {
 	}
 
 	authInterceptor := auth.NewInterceptor(s.jwtChecker)
+	ipcheckInterceptor := ipcheck.NewInterceptor(s.cfg.TrustedIPNet)
 
 	s.grpc = grpc.NewServer(
-		grpc.UnaryInterceptor(authInterceptor.UnaryAuthInterceptor),
+		grpc.ChainUnaryInterceptor(
+			authInterceptor.UnaryAuthInterceptor,
+			ipcheckInterceptor.UnaryIPCheckInterceptor,
+		),
 	)
 
 	pb.RegisterShortenerServiceServer(s.grpc, s)
@@ -167,33 +170,7 @@ func (s *ShortenerServer) GetShortURL(_ context.Context, request *pb.GetShortURL
 	return &pb.GetShortURLResponse{OriginalUrl: url}, nil
 }
 
-func (s *ShortenerServer) GetStats(ctx context.Context, _ *pb.GetStatsRequest) (*pb.GetStatsResponse, error) {
-	if s.cfg.TrustedSubnet == "" {
-		logger.Log.Warn("grpc: GetStats called but trusted subnet is not configured")
-		return nil, status.Error(codes.PermissionDenied, errMsgAccessDenied)
-	}
-
-	p, ok := peer.FromContext(ctx)
-	if !ok {
-		logger.Log.Error("grpc: failed to get peer from context")
-		return nil, status.Error(codes.PermissionDenied, errMsgAccessDenied)
-	}
-
-	tcpAddr, ok := p.Addr.(*net.TCPAddr)
-	if !ok {
-		logger.Log.Error("grpc: peer address is not TCP")
-		return nil, status.Error(codes.PermissionDenied, errMsgAccessDenied)
-	}
-
-	clientIP := tcpAddr.IP
-
-	if s.cfg.TrustedIPNet == nil || !s.cfg.TrustedIPNet.Contains(clientIP) {
-		logger.Log.Info("grpc: request IP is not in trusted subnet",
-			zap.String("ip", clientIP.String()),
-			zap.String("subnet", s.cfg.TrustedSubnet))
-		return nil, status.Error(codes.PermissionDenied, errMsgAccessDenied)
-	}
-
+func (s *ShortenerServer) GetStats(_ context.Context, _ *pb.GetStatsRequest) (*pb.GetStatsResponse, error) {
 	stats, err := s.repo.GetStats()
 	if err != nil {
 		logger.Log.Error("grpc: failed to get stats", zap.Error(err))

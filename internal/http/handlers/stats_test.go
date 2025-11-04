@@ -3,12 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/aifedorov/shortener/internal/config"
 	"github.com/aifedorov/shortener/internal/mocks"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/golang/mock/gomock"
@@ -20,18 +18,14 @@ func TestNewStatsHandler(t *testing.T) {
 	tests := []struct {
 		name           string
 		method         string
-		realIP         string
-		trustedSubnet  string
 		setupMock      func(*mocks.MockRepository)
 		expectedStatus int
 		expectedBody   *StatsResponse
 		checkError     bool
 	}{
 		{
-			name:          "GET - successful stats retrieval with trusted IP",
-			method:        http.MethodGet,
-			realIP:        "192.168.1.10",
-			trustedSubnet: "192.168.1.0/24",
+			name:   "GET - successful stats retrieval",
+			method: http.MethodGet,
 			setupMock: func(mockRepo *mocks.MockRepository) {
 				mockRepo.EXPECT().
 					GetStats().
@@ -49,10 +43,8 @@ func TestNewStatsHandler(t *testing.T) {
 			checkError: false,
 		},
 		{
-			name:          "GET - zero stats with trusted IP",
-			method:        http.MethodGet,
-			realIP:        "10.0.0.5",
-			trustedSubnet: "10.0.0.0/24",
+			name:   "GET - zero stats",
+			method: http.MethodGet,
 			setupMock: func(mockRepo *mocks.MockRepository) {
 				mockRepo.EXPECT().
 					GetStats().
@@ -70,10 +62,8 @@ func TestNewStatsHandler(t *testing.T) {
 			checkError: false,
 		},
 		{
-			name:          "GET - large numbers with trusted IP",
-			method:        http.MethodGet,
-			realIP:        "172.16.0.100",
-			trustedSubnet: "172.16.0.0/16",
+			name:   "GET - large numbers",
+			method: http.MethodGet,
 			setupMock: func(mockRepo *mocks.MockRepository) {
 				mockRepo.EXPECT().
 					GetStats().
@@ -91,10 +81,8 @@ func TestNewStatsHandler(t *testing.T) {
 			checkError: false,
 		},
 		{
-			name:          "GET - repository error with trusted IP",
-			method:        http.MethodGet,
-			realIP:        "192.168.1.1",
-			trustedSubnet: "192.168.1.0/24",
+			name:   "GET - repository error",
+			method: http.MethodGet,
 			setupMock: func(mockRepo *mocks.MockRepository) {
 				mockRepo.EXPECT().
 					GetStats().
@@ -106,70 +94,8 @@ func TestNewStatsHandler(t *testing.T) {
 			checkError:     true,
 		},
 		{
-			name:           "GET - IP not in trusted subnet",
-			method:         http.MethodGet,
-			realIP:         "10.0.0.1",
-			trustedSubnet:  "192.168.1.0/24",
-			setupMock:      func(mockRepo *mocks.MockRepository) {},
-			expectedStatus: http.StatusForbidden,
-			expectedBody:   nil,
-			checkError:     true,
-		},
-		{
-			name:           "GET - empty trusted subnet (all requests forbidden)",
-			method:         http.MethodGet,
-			realIP:         "192.168.1.10",
-			trustedSubnet:  "",
-			setupMock:      func(mockRepo *mocks.MockRepository) {},
-			expectedStatus: http.StatusForbidden,
-			expectedBody:   nil,
-			checkError:     true,
-		},
-		{
-			name:           "GET - missing X-Real-IP header",
-			method:         http.MethodGet,
-			realIP:         "",
-			trustedSubnet:  "192.168.1.0/24",
-			setupMock:      func(mockRepo *mocks.MockRepository) {},
-			expectedStatus: http.StatusForbidden,
-			expectedBody:   nil,
-			checkError:     true,
-		},
-		{
-			name:           "GET - invalid IP address format",
-			method:         http.MethodGet,
-			realIP:         "invalid-ip",
-			trustedSubnet:  "192.168.1.0/24",
-			setupMock:      func(mockRepo *mocks.MockRepository) {},
-			expectedStatus: http.StatusForbidden,
-			expectedBody:   nil,
-			checkError:     true,
-		},
-		{
-			name:           "GET - IPv6 address not in IPv4 subnet",
-			method:         http.MethodGet,
-			realIP:         "2001:db8::1",
-			trustedSubnet:  "192.168.1.0/24",
-			setupMock:      func(mockRepo *mocks.MockRepository) {},
-			expectedStatus: http.StatusForbidden,
-			expectedBody:   nil,
-			checkError:     true,
-		},
-		{
-			name:           "GET - IP outside subnet range",
-			method:         http.MethodGet,
-			realIP:         "192.168.2.1",
-			trustedSubnet:  "192.168.1.0/24",
-			setupMock:      func(mockRepo *mocks.MockRepository) {},
-			expectedStatus: http.StatusForbidden,
-			expectedBody:   nil,
-			checkError:     true,
-		},
-		{
-			name:           "POST - method not allowed (even with trusted IP)",
+			name:           "POST - method not allowed",
 			method:         http.MethodPost,
-			realIP:         "192.168.1.10",
-			trustedSubnet:  "192.168.1.0/24",
 			setupMock:      func(mockRepo *mocks.MockRepository) {},
 			expectedStatus: http.StatusMethodNotAllowed,
 			expectedBody:   nil,
@@ -178,8 +104,6 @@ func TestNewStatsHandler(t *testing.T) {
 		{
 			name:           "PUT - method not allowed",
 			method:         http.MethodPut,
-			realIP:         "192.168.1.10",
-			trustedSubnet:  "192.168.1.0/24",
 			setupMock:      func(mockRepo *mocks.MockRepository) {},
 			expectedStatus: http.StatusMethodNotAllowed,
 			expectedBody:   nil,
@@ -188,8 +112,6 @@ func TestNewStatsHandler(t *testing.T) {
 		{
 			name:           "DELETE - method not allowed",
 			method:         http.MethodDelete,
-			realIP:         "192.168.1.10",
-			trustedSubnet:  "192.168.1.0/24",
 			setupMock:      func(mockRepo *mocks.MockRepository) {},
 			expectedStatus: http.StatusMethodNotAllowed,
 			expectedBody:   nil,
@@ -198,8 +120,6 @@ func TestNewStatsHandler(t *testing.T) {
 		{
 			name:           "PATCH - method not allowed",
 			method:         http.MethodPatch,
-			realIP:         "192.168.1.10",
-			trustedSubnet:  "192.168.1.0/24",
 			setupMock:      func(mockRepo *mocks.MockRepository) {},
 			expectedStatus: http.StatusMethodNotAllowed,
 			expectedBody:   nil,
@@ -216,29 +136,10 @@ func TestNewStatsHandler(t *testing.T) {
 			mockRepo := mocks.NewMockRepository(ctrl)
 			tt.setupMock(mockRepo)
 
-			cfg := &config.Config{
-				BaseURL:       "http://localhost:8080",
-				TrustedSubnet: tt.trustedSubnet,
-			}
-
-			// Parse the trusted subnet into IPNet if provided
-			if tt.trustedSubnet != "" {
-				_, ipnet, err := net.ParseCIDR(tt.trustedSubnet)
-				if err == nil {
-					cfg.TrustedIPNet = ipnet
-				}
-			}
-
-			handler := NewStatsHandler(cfg, mockRepo)
+			handler := NewStatsHandler(mockRepo)
 
 			// Create request
 			req := httptest.NewRequest(tt.method, "/api/internal/stats", nil)
-
-			// Set X-Real-IP header if provided
-			if tt.realIP != "" {
-				req.Header.Set("X-Real-IP", tt.realIP)
-			}
-
 			rr := httptest.NewRecorder()
 
 			// Execute

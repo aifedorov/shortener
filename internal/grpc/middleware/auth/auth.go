@@ -18,13 +18,18 @@ import (
 type ContextKey string
 
 const (
-	jwyKey = "jwt"
-	// UserIDKey is the context key for storing user ID
-	UserIDKey = ContextKey("userID")
+	// jwyKey is the context key for storing JWT token
+	jwyKey ContextKey = "jwt"
+	// userIDKey is the context key for storing user ID
+	userIDKey ContextKey = "userID"
 )
 
-// For backward compatibility in this package
-const userIDKey = UserIDKey
+// GetUserIDKey returns the context key for user ID
+// Note: This function should not be used directly as a context key.
+// Use it to retrieve the key value, not as the key itself.
+func GetUserIDKey() ContextKey {
+	return userIDKey
+}
 
 var publicMethods = map[string]bool{
 	"/shortener.v1.ShortenerService/Ping":        true,
@@ -69,7 +74,7 @@ func (i *Interceptor) UnaryAuthInterceptor(
 		return nil, status.Errorf(codes.Unauthenticated, "no metadata")
 	}
 
-	token := md.Get(jwyKey)
+	token := md.Get(string(jwyKey))
 	if len(token) == 0 {
 		logger.Log.Debug("auth: generating new token")
 		userID := uuid.NewString()
@@ -79,7 +84,7 @@ func (i *Interceptor) UnaryAuthInterceptor(
 		}
 
 		ctx = context.WithValue(ctx, userIDKey, userID)
-		ctx = metadata.AppendToOutgoingContext(ctx, jwyKey, jwtToken)
+		ctx = metadata.AppendToOutgoingContext(ctx, string(jwyKey), jwtToken)
 		return handler(ctx, req)
 	}
 

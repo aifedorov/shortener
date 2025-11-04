@@ -7,6 +7,7 @@ import (
 
 	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/compress"
+	"github.com/aifedorov/shortener/internal/http/middleware/ipcheck"
 	"github.com/aifedorov/shortener/internal/pkg/jwt"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/go-chi/chi/v5"
@@ -96,8 +97,8 @@ func newRouter(cfg *config.Config, repo repository.Repository, urlChecker valida
 	router.Use(logger.RequestLogger)
 	router.Use(logger.ResponseLogger)
 
-	m := auth.NewMiddleware(authService)
-	router.Use(m.JWTAuth)
+	authm := auth.NewMiddleware(authService)
+	router.Use(authm.JWTAuth)
 
 	router.Post("/", handlers.NewSavePlainTextHandler(cfg, repo, urlChecker))
 	router.Post("/api/shorten", handlers.NewSaveJSONHandler(cfg, repo, urlChecker))
@@ -110,7 +111,9 @@ func newRouter(cfg *config.Config, repo repository.Repository, urlChecker valida
 	router.Get("/ping", handlers.NewPingHandler(repo))
 	router.Get("/api/user/urls", handlers.NewURLsHandler(cfg, repo))
 	router.Delete("/api/user/urls", handlers.NewDeleteHandler(repo))
-	router.Get("/api/internal/stats", handlers.NewStatsHandler(cfg, repo))
+
+	ipcheckm := ipcheck.NewMiddleware(cfg.TrustedIPNet)
+	router.With(ipcheckm.IPCheck).Get("/api/internal/stats", handlers.NewStatsHandler(repo))
 
 	return router
 }

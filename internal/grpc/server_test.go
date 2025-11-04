@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -104,7 +103,7 @@ func TestShortenerServer_CreateShortURL(t *testing.T) {
 			tt.setupMock(mockRepo, mockChecker)
 
 			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.UserIDKey, "1")
+			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.CreateShortURL(ctx, tt.request)
 
 			if tt.wantErr {
@@ -237,7 +236,7 @@ func TestShortenerServer_BatchCreateShortURL(t *testing.T) {
 			tt.setupMock(mockRepo, mockChecker)
 
 			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.UserIDKey, "1")
+			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.BatchCreateShortURL(ctx, tt.request)
 
 			if tt.wantErr {
@@ -326,7 +325,7 @@ func TestShortenerServer_GetShortURL(t *testing.T) {
 			tt.setupMock(mockRepo)
 
 			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.UserIDKey, "1")
+			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.GetShortURL(ctx, tt.request)
 
 			if tt.wantErr {
@@ -377,7 +376,7 @@ func TestShortenerServer_Ping(t *testing.T) {
 			tt.setupMock(mockRepo)
 
 			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.UserIDKey, "1")
+			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.Ping(ctx, &pb.PingRequest{})
 
 			if tt.wantErr {
@@ -460,7 +459,7 @@ func TestShortenerServer_ListShortURLs(t *testing.T) {
 			tt.setupMock(mockRepo)
 
 			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.UserIDKey, "1")
+			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.ListShortURLs(ctx, &pb.ListShortURLsRequest{})
 
 			if tt.wantErr {
@@ -492,15 +491,13 @@ func TestShortenerServer_GetStats(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name: "success - trusted ip",
+			name: "success - stats retrieval",
 			cfg: &config.Config{
 				RunAddr:       ":8080",
 				BaseURL:       "http://localhost:8080",
 				TrustedSubnet: "192.168.1.0/24",
 			},
-			ctx: peer.NewContext(context.Background(), &peer.Peer{
-				Addr: &net.TCPAddr{IP: net.ParseIP("192.168.1.10"), Port: 12345},
-			}),
+			ctx: context.Background(),
 			setupMock: func(repo *mocks.MockRepository) {
 				repo.EXPECT().GetStats().Return(repository.StatsOutput{
 					TotalURLs:  100,
@@ -514,39 +511,7 @@ func TestShortenerServer_GetStats(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "no trusted subnet configured",
-			cfg: &config.Config{
-				RunAddr:       ":8080",
-				BaseURL:       "http://localhost:8080",
-				TrustedSubnet: "",
-			},
-			ctx: peer.NewContext(context.Background(), &peer.Peer{
-				Addr: &net.TCPAddr{IP: net.ParseIP("192.168.1.10"), Port: 12345},
-			}),
-			setupMock: func(repo *mocks.MockRepository) {
-				// No expectations - should fail before repository call
-			},
-			wantCode: codes.PermissionDenied,
-			wantErr:  true,
-		},
-		{
-			name: "ip not in trusted subnet",
-			cfg: &config.Config{
-				RunAddr:       ":8080",
-				BaseURL:       "http://localhost:8080",
-				TrustedSubnet: "192.168.1.0/24",
-			},
-			ctx: peer.NewContext(context.Background(), &peer.Peer{
-				Addr: &net.TCPAddr{IP: net.ParseIP("10.0.0.1"), Port: 12345},
-			}),
-			setupMock: func(repo *mocks.MockRepository) {
-				// No expectations - should fail before repository call
-			},
-			wantCode: codes.PermissionDenied,
-			wantErr:  true,
-		},
-		{
-			name: "no peer in context",
+			name: "success - zero stats",
 			cfg: &config.Config{
 				RunAddr:       ":8080",
 				BaseURL:       "http://localhost:8080",
@@ -554,10 +519,16 @@ func TestShortenerServer_GetStats(t *testing.T) {
 			},
 			ctx: context.Background(),
 			setupMock: func(repo *mocks.MockRepository) {
-				// No expectations - should fail before repository call
+				repo.EXPECT().GetStats().Return(repository.StatsOutput{
+					TotalURLs:  0,
+					TotalUsers: 0,
+				}, nil)
 			},
-			wantCode: codes.PermissionDenied,
-			wantErr:  true,
+			wantResp: &pb.GetStatsResponse{
+				Urls:  0,
+				Users: 0,
+			},
+			wantErr: false,
 		},
 		{
 			name: "repository error",
@@ -566,9 +537,7 @@ func TestShortenerServer_GetStats(t *testing.T) {
 				BaseURL:       "http://localhost:8080",
 				TrustedSubnet: "192.168.1.0/24",
 			},
-			ctx: peer.NewContext(context.Background(), &peer.Peer{
-				Addr: &net.TCPAddr{IP: net.ParseIP("192.168.1.10"), Port: 12345},
-			}),
+			ctx: context.Background(),
 			setupMock: func(repo *mocks.MockRepository) {
 				repo.EXPECT().GetStats().Return(repository.StatsOutput{}, errors.New("database error"))
 			},
@@ -673,7 +642,7 @@ func TestShortenerServer_DeleteURLs(t *testing.T) {
 			tt.setupMock(mockRepo)
 
 			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.UserIDKey, "1")
+			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.DeleteURLs(ctx, tt.request)
 
 			if tt.wantErr {
