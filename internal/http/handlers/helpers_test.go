@@ -2,16 +2,16 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
 	"github.com/aifedorov/shortener/internal/http/middleware/auth"
-	"github.com/aifedorov/shortener/internal/mocks"
+	"github.com/aifedorov/shortener/internal/pkg/random"
+	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -214,7 +214,6 @@ func TestValidateURLs(t *testing.T) {
 	tests := []struct {
 		name        string
 		reqURLs     []BatchRequest
-		checkError  error
 		expected    []repository.BatchURLInput
 		expectError bool
 	}{
@@ -224,7 +223,6 @@ func TestValidateURLs(t *testing.T) {
 				{CID: "1", OriginalURL: "https://example.com"},
 				{CID: "2", OriginalURL: "https://google.com"},
 			},
-			checkError: nil,
 			expected: []repository.BatchURLInput{
 				{CID: "1", OriginalURL: "https://example.com"},
 				{CID: "2", OriginalURL: "https://google.com"},
@@ -236,14 +234,12 @@ func TestValidateURLs(t *testing.T) {
 			reqURLs: []BatchRequest{
 				{CID: "1", OriginalURL: "invalid-url"},
 			},
-			checkError:  errors.New("invalid URL"),
 			expected:    nil,
 			expectError: true,
 		},
 		{
 			name:        "empty URLs",
 			reqURLs:     []BatchRequest{},
-			checkError:  nil,
 			expected:    []repository.BatchURLInput{},
 			expectError: false,
 		},
@@ -251,15 +247,12 @@ func TestValidateURLs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+			// Create real domain service (lightweight, no external dependencies)
+			validator := validate.NewService()
+			randomizer := random.NewService()
+			urlService := urlDomain.NewService(randomizer, validator)
 
-			mockURLChecker := mocks.NewMockURLChecker(ctrl)
-			for _, reqURL := range tt.reqURLs {
-				mockURLChecker.EXPECT().CheckURL(reqURL.OriginalURL).Return(tt.checkError)
-			}
-
-			result, err := validateURLs(tt.reqURLs, mockURLChecker)
+			result, err := validateURLs(tt.reqURLs, urlService)
 
 			if tt.expectError {
 				assert.Error(t, err)

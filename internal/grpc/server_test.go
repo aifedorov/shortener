@@ -8,8 +8,12 @@ import (
 
 	pb "github.com/aifedorov/shortener/api/grpc/gen/shortener/v1"
 	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/grpc/middleware/auth"
 	"github.com/aifedorov/shortener/internal/mocks"
+	"github.com/aifedorov/shortener/internal/pkg/random"
+	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -18,11 +22,19 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+func createDomainServices() (urlDomain.Service, *userDomain.Service) {
+	validator := validate.NewService()
+	randomizer := random.NewService()
+	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
+	return urlService, userService
+}
+
 func TestShortenerServer_CreateShortURL(t *testing.T) {
 	tests := []struct {
 		name      string
 		request   *pb.CreateShortURLRequest
-		setupMock func(*mocks.MockRepository, *mocks.MockURLChecker)
+		setupMock func(*mocks.MockRepository)
 		wantResp  *pb.CreateShortURLResponse
 		wantCode  codes.Code
 		wantErr   bool
@@ -32,8 +44,7 @@ func TestShortenerServer_CreateShortURL(t *testing.T) {
 			request: &pb.CreateShortURLRequest{
 				Url: "https://example.com",
 			},
-			setupMock: func(repo *mocks.MockRepository, checker *mocks.MockURLChecker) {
-				checker.EXPECT().CheckURL("https://example.com").Return(nil)
+			setupMock: func(repo *mocks.MockRepository) {
 				repo.EXPECT().Store("1", "http://localhost:8080", "https://example.com").
 					Return("http://localhost:8080/abc123", nil)
 			},
@@ -47,8 +58,8 @@ func TestShortenerServer_CreateShortURL(t *testing.T) {
 			request: &pb.CreateShortURLRequest{
 				Url: "not-a-valid-url",
 			},
-			setupMock: func(repo *mocks.MockRepository, checker *mocks.MockURLChecker) {
-				checker.EXPECT().CheckURL("not-a-valid-url").Return(errors.New("invalid url"))
+			setupMock: func(repo *mocks.MockRepository) {
+				// Domain service will reject invalid URL, no repo call
 			},
 			wantCode: codes.InvalidArgument,
 			wantErr:  true,
@@ -58,8 +69,8 @@ func TestShortenerServer_CreateShortURL(t *testing.T) {
 			request: &pb.CreateShortURLRequest{
 				Url: "",
 			},
-			setupMock: func(repo *mocks.MockRepository, checker *mocks.MockURLChecker) {
-				checker.EXPECT().CheckURL("").Return(errors.New("empty url"))
+			setupMock: func(repo *mocks.MockRepository) {
+				// Domain service will reject empty URL, no repo call
 			},
 			wantCode: codes.InvalidArgument,
 			wantErr:  true,
@@ -69,8 +80,7 @@ func TestShortenerServer_CreateShortURL(t *testing.T) {
 			request: &pb.CreateShortURLRequest{
 				Url: "https://example.com",
 			},
-			setupMock: func(repo *mocks.MockRepository, checker *mocks.MockURLChecker) {
-				checker.EXPECT().CheckURL("https://example.com").Return(nil)
+			setupMock: func(repo *mocks.MockRepository) {
 				repo.EXPECT().Store("1", "http://localhost:8080", "https://example.com").
 					Return("", &repository.ConflictError{ShortURL: "http://localhost:8080/existing"})
 			},
@@ -82,8 +92,7 @@ func TestShortenerServer_CreateShortURL(t *testing.T) {
 			request: &pb.CreateShortURLRequest{
 				Url: "https://example.com",
 			},
-			setupMock: func(repo *mocks.MockRepository, checker *mocks.MockURLChecker) {
-				checker.EXPECT().CheckURL("https://example.com").Return(nil)
+			setupMock: func(repo *mocks.MockRepository) {
 				repo.EXPECT().Store("1", "http://localhost:8080", "https://example.com").
 					Return("", errors.New("database connection failed"))
 			},
@@ -98,11 +107,11 @@ func TestShortenerServer_CreateShortURL(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mocks.NewMockRepository(ctrl)
-			mockChecker := mocks.NewMockURLChecker(ctrl)
 			mockJWT := mocks.NewMockJWT(ctrl)
-			tt.setupMock(mockRepo, mockChecker)
+			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			urlService, userService := createDomainServices()
+			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
 			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.CreateShortURL(ctx, tt.request)
 
@@ -123,7 +132,7 @@ func TestShortenerServer_BatchCreateShortURL(t *testing.T) {
 	tests := []struct {
 		name      string
 		request   *pb.BatchCreateShortURLRequest
-		setupMock func(*mocks.MockRepository, *mocks.MockURLChecker)
+		setupMock func(*mocks.MockRepository)
 		wantResp  *pb.BatchCreateShortURLResponse
 		wantCode  codes.Code
 		wantErr   bool
@@ -135,8 +144,7 @@ func TestShortenerServer_BatchCreateShortURL(t *testing.T) {
 					{Cid: "1", OriginalUrl: "https://example.com"},
 				},
 			},
-			setupMock: func(repo *mocks.MockRepository, checker *mocks.MockURLChecker) {
-				checker.EXPECT().CheckURL("https://example.com").Return(nil)
+			setupMock: func(repo *mocks.MockRepository) {
 				repo.EXPECT().StoreBatch("1", "http://localhost:8080", gomock.Any()).
 					DoAndReturn(func(userID, baseURL string, urls []repository.BatchURLInput) ([]repository.BatchURLOutput, error) {
 						return []repository.BatchURLOutput{
@@ -159,9 +167,7 @@ func TestShortenerServer_BatchCreateShortURL(t *testing.T) {
 					{Cid: "2", OriginalUrl: "https://google.com"},
 				},
 			},
-			setupMock: func(repo *mocks.MockRepository, checker *mocks.MockURLChecker) {
-				checker.EXPECT().CheckURL("https://example.com").Return(nil)
-				checker.EXPECT().CheckURL("https://google.com").Return(nil)
+			setupMock: func(repo *mocks.MockRepository) {
 				repo.EXPECT().StoreBatch("1", "http://localhost:8080", gomock.Any()).
 					DoAndReturn(func(userID, baseURL string, urls []repository.BatchURLInput) ([]repository.BatchURLOutput, error) {
 						return []repository.BatchURLOutput{
@@ -186,9 +192,7 @@ func TestShortenerServer_BatchCreateShortURL(t *testing.T) {
 					{Cid: "2", OriginalUrl: "invalid-url"},
 				},
 			},
-			setupMock: func(repo *mocks.MockRepository, checker *mocks.MockURLChecker) {
-				checker.EXPECT().CheckURL("https://example.com").Return(nil)
-				checker.EXPECT().CheckURL("invalid-url").Return(errors.New("invalid url"))
+			setupMock: func(repo *mocks.MockRepository) {
 			},
 			wantCode: codes.InvalidArgument,
 			wantErr:  true,
@@ -200,8 +204,7 @@ func TestShortenerServer_BatchCreateShortURL(t *testing.T) {
 					{Cid: "1", OriginalUrl: "https://example.com"},
 				},
 			},
-			setupMock: func(repo *mocks.MockRepository, checker *mocks.MockURLChecker) {
-				checker.EXPECT().CheckURL("https://example.com").Return(nil)
+			setupMock: func(repo *mocks.MockRepository) {
 				repo.EXPECT().StoreBatch("1", "http://localhost:8080", gomock.Any()).
 					Return(nil, &repository.ConflictError{ShortURL: "http://localhost:8080/existing"})
 			},
@@ -215,8 +218,7 @@ func TestShortenerServer_BatchCreateShortURL(t *testing.T) {
 					{Cid: "1", OriginalUrl: "https://example.com"},
 				},
 			},
-			setupMock: func(repo *mocks.MockRepository, checker *mocks.MockURLChecker) {
-				checker.EXPECT().CheckURL("https://example.com").Return(nil)
+			setupMock: func(repo *mocks.MockRepository) {
 				repo.EXPECT().StoreBatch("1", "http://localhost:8080", gomock.Any()).
 					Return(nil, errors.New("database error"))
 			},
@@ -231,11 +233,11 @@ func TestShortenerServer_BatchCreateShortURL(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mocks.NewMockRepository(ctrl)
-			mockChecker := mocks.NewMockURLChecker(ctrl)
 			mockJWT := mocks.NewMockJWT(ctrl)
-			tt.setupMock(mockRepo, mockChecker)
+			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			urlService, userService := createDomainServices()
+			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
 			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.BatchCreateShortURL(ctx, tt.request)
 
@@ -320,11 +322,11 @@ func TestShortenerServer_GetShortURL(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mocks.NewMockRepository(ctrl)
-			mockChecker := mocks.NewMockURLChecker(ctrl)
 			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			urlService, userService := createDomainServices()
+			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
 			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.GetShortURL(ctx, tt.request)
 
@@ -371,11 +373,11 @@ func TestShortenerServer_Ping(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mocks.NewMockRepository(ctrl)
-			mockChecker := mocks.NewMockURLChecker(ctrl)
 			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			urlService, userService := createDomainServices()
+			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
 			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.Ping(ctx, &pb.PingRequest{})
 
@@ -454,11 +456,11 @@ func TestShortenerServer_ListShortURLs(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mocks.NewMockRepository(ctrl)
-			mockChecker := mocks.NewMockURLChecker(ctrl)
 			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			urlService, userService := createDomainServices()
+			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
 			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.ListShortURLs(ctx, &pb.ListShortURLsRequest{})
 
@@ -552,11 +554,11 @@ func TestShortenerServer_GetStats(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mocks.NewMockRepository(ctrl)
-			mockChecker := mocks.NewMockURLChecker(ctrl)
 			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(tt.cfg, mockRepo, mockChecker, mockJWT)
+			urlService, userService := createDomainServices()
+			server := NewShortenerServer(tt.cfg, mockRepo, urlService, userService, mockJWT)
 			if tt.cfg.TrustedSubnet != "" {
 				_, ipnet, err := net.ParseCIDR(tt.cfg.TrustedSubnet)
 				if err == nil {
@@ -637,11 +639,11 @@ func TestShortenerServer_DeleteURLs(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mocks.NewMockRepository(ctrl)
-			mockChecker := mocks.NewMockURLChecker(ctrl)
 			mockJWT := mocks.NewMockJWT(ctrl)
 			tt.setupMock(mockRepo)
 
-			server := NewShortenerServer(newMockConfig(), mockRepo, mockChecker, mockJWT)
+			urlService, userService := createDomainServices()
+			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
 			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
 			resp, err := server.DeleteURLs(ctx, tt.request)
 
@@ -664,15 +666,16 @@ func TestNewShortenerServer(t *testing.T) {
 
 	cfg := newMockConfig()
 	mockRepo := mocks.NewMockRepository(ctrl)
-	mockChecker := mocks.NewMockURLChecker(ctrl)
 	mockJWT := mocks.NewMockJWT(ctrl)
 
-	server := NewShortenerServer(cfg, mockRepo, mockChecker, mockJWT)
+	urlService, userService := createDomainServices()
+	server := NewShortenerServer(cfg, mockRepo, urlService, userService, mockJWT)
 
 	assert.NotNil(t, server)
 	assert.Equal(t, cfg, server.cfg)
 	assert.Equal(t, mockRepo, server.repo)
-	assert.Equal(t, mockChecker, server.urlChecker)
+	assert.NotNil(t, server.urlService)
+	assert.NotNil(t, server.userService)
 }
 
 func newMockConfig() *config.Config {

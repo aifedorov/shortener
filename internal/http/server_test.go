@@ -12,10 +12,22 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/mocks"
+	"github.com/aifedorov/shortener/internal/pkg/random"
+	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 )
+
+func createDomainServices() (urlDomain.Service, *userDomain.Service) {
+	validator := validate.NewService()
+	randomizer := random.NewService()
+	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
+	return urlService, userService
+}
 
 func TestServer_Integration(t *testing.T) {
 	t.Run("full workflow", func(t *testing.T) {
@@ -33,7 +45,8 @@ func TestServer_Integration(t *testing.T) {
 		}, nil)
 		mockRepo.EXPECT().Ping().Return(nil)
 
-		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT)
+		urlService, userService := createDomainServices()
+		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT, urlService, userService)
 
 		userID := uuid.NewString()
 		ctx := context.WithValue(context.Background(), auth.UserIDKey, userID)
@@ -71,7 +84,8 @@ func TestServer_Integration(t *testing.T) {
 		cfg := newMockConfig()
 		mockRepo := mocks.NewMockRepository(ctrl)
 		mockJWT := mocks.NewMockJWT(ctrl)
-		server := NewServer(context.Background(), cfg, mockRepo, mockJWT)
+		urlService, userService := createDomainServices()
+		server := NewServer(context.Background(), cfg, mockRepo, mockJWT, urlService, userService)
 
 		assert.NotNil(t, server)
 		assert.Equal(t, cfg, server.config)
@@ -85,7 +99,8 @@ func TestServer_Integration(t *testing.T) {
 		mockRepo := mocks.NewMockRepository(ctrl)
 		mockJWT := mocks.NewMockJWT(ctrl)
 		// JWT middleware won't be reached because Content-Type middleware returns error first
-		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT)
+		urlService, userService := createDomainServices()
+		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT, urlService, userService)
 
 		// Test without user ID (should return unsupported media type since no Content-Type header)
 		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com"))
@@ -105,7 +120,8 @@ func TestServer_ErrorHandling(t *testing.T) {
 		mockJWT := mocks.NewMockJWT(ctrl)
 		mockJWT.EXPECT().Generate(gomock.Any()).Return("mock-jwt-token", nil)
 		mockRepo.EXPECT().Get("nonexistent").Return("", repository.ErrShortURLNotFound)
-		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT)
+		urlService, userService := createDomainServices()
+		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT, urlService, userService)
 
 		req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
 		res := executeRequest(req, server)
@@ -119,7 +135,8 @@ func TestServer_ErrorHandling(t *testing.T) {
 		mockRepo := mocks.NewMockRepository(ctrl)
 		mockJWT := mocks.NewMockJWT(ctrl)
 		mockJWT.EXPECT().Generate(gomock.Any()).Return("mock-jwt-token", nil)
-		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT)
+		urlService, userService := createDomainServices()
+		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT, urlService, userService)
 
 		req := httptest.NewRequest(http.MethodPut, "/", nil)
 		res := executeRequest(req, server)

@@ -5,19 +5,19 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
+	"github.com/aifedorov/shortener/internal/http/handlers"
 	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/compress"
 	"github.com/aifedorov/shortener/internal/http/middleware/ipcheck"
+	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/pkg/jwt"
-	"github.com/aifedorov/shortener/internal/pkg/validate"
+	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
-
-	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/http/handlers"
-	"github.com/aifedorov/shortener/internal/http/middleware/logger"
-	"github.com/aifedorov/shortener/internal/repository"
 )
 
 // Server error definitions
@@ -37,14 +37,16 @@ var supportedContentTypes = []string{
 // Server represents the HTTP server for the URL shortener application.
 // It manages HTTP routes, middleware, and coordinates between handlers and the repository.
 type Server struct {
-	// router is the Chi router instance for handling HTTP routes.
-	router *chi.Mux
 	// config holds the application configuration settings.
 	config *config.Config
 	// repo is the repository interface for data persistence.
 	repo repository.Repository
 	// authService is the JWT authentication service.
 	authService jwt.JWT
+	// urlService is the domain service for URL operations.
+	urlService urlDomain.Service
+	// userService is the domain service for user operations.
+	userService *userDomain.Service
 	// ctx is the background context for the server.
 	ctx context.Context
 	// srv is the HTTP server instance.
@@ -52,16 +54,25 @@ type Server struct {
 }
 
 // NewServer creates a new HTTP server instance with the provided configuration and repository.
-// The server is initialized with Chi router, URL validation service, and background context.
-func NewServer(ctx context.Context, cfg *config.Config, repo repository.Repository, authService jwt.JWT) *Server {
+// The server is initialized with Chi router, domain services, and background context.
+func NewServer(
+	ctx context.Context,
+	cfg *config.Config,
+	repo repository.Repository,
+	authService jwt.JWT,
+	urlService urlDomain.Service,
+	userService *userDomain.Service,
+) *Server {
 	return &Server{
 		config:      cfg,
 		repo:        repo,
 		authService: authService,
+		urlService:  urlService,
+		userService: userService,
 		ctx:         ctx,
 		srv: &http.Server{
 			Addr:    cfg.RunAddr,
-			Handler: newRouter(cfg, repo, validate.NewService(), authService),
+			Handler: newRouter(cfg, repo, urlService, authService),
 		},
 	}
 }
@@ -89,7 +100,7 @@ func (s *Server) Shutdown() error {
 }
 
 // NewRouter create a new roture then registers all HTTP route handlers and middleware.
-func newRouter(cfg *config.Config, repo repository.Repository, urlChecker validate.URLChecker, authService jwt.JWT) *chi.Mux {
+func newRouter(cfg *config.Config, repo repository.Repository, urlService urlDomain.Service, authService jwt.JWT) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(chimiddleware.AllowContentType(supportedContentTypes...))
@@ -100,9 +111,9 @@ func newRouter(cfg *config.Config, repo repository.Repository, urlChecker valida
 	authm := auth.NewMiddleware(authService)
 	router.Use(authm.JWTAuth)
 
-	router.Post("/", handlers.NewSavePlainTextHandler(cfg, repo, urlChecker))
-	router.Post("/api/shorten", handlers.NewSaveJSONHandler(cfg, repo, urlChecker))
-	router.Post("/api/shorten/batch", handlers.NewSaveJSONBatchHandler(cfg, repo, urlChecker))
+	router.Post("/", handlers.NewSavePlainTextHandler(cfg, repo, urlService))
+	router.Post("/api/shorten", handlers.NewSaveJSONHandler(cfg, repo, urlService))
+	router.Post("/api/shorten/batch", handlers.NewSaveJSONBatchHandler(cfg, repo, urlService))
 	router.Get("/{shortURL}", handlers.NewRedirectHandler(repo))
 	router.Get("/", func(res http.ResponseWriter, r *http.Request) {
 		logger.Log.Debug("server: got request with bad data", zap.String("method", r.Method))

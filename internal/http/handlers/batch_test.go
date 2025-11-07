@@ -11,8 +11,11 @@ import (
 	"testing"
 
 	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
 	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/mocks"
+	"github.com/aifedorov/shortener/internal/pkg/random"
+	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +26,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 		name           string
 		requestBody    string
 		userID         string
-		urlCheckerErr  error
 		storeBatchErr  error
 		expectedStatus int
 		expectedBody   string
@@ -32,7 +34,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			name:           "successful batch URL shortening",
 			requestBody:    `[{"correlation_id": "1", "original_url": "https://example.com"}, {"correlation_id": "2", "original_url": "https://google.com"}]`,
 			userID:         "user123",
-			urlCheckerErr:  nil,
 			storeBatchErr:  nil,
 			expectedStatus: http.StatusCreated,
 			expectedBody:   `[{"correlation_id":"1","short_url":"http://localhost:8080/abc1"},{"correlation_id":"2","short_url":"http://localhost:8080/abc2"}]`,
@@ -41,7 +42,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			name:           "invalid JSON",
 			requestBody:    `[{"correlation_id": "1", "original_url": "https://example.com"`,
 			userID:         "user123",
-			urlCheckerErr:  nil,
 			storeBatchErr:  nil,
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Bad Request\n",
@@ -50,7 +50,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			name:           "empty request body",
 			requestBody:    ``,
 			userID:         "user123",
-			urlCheckerErr:  nil,
 			storeBatchErr:  nil,
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Bad Request\n",
@@ -59,7 +58,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			name:           "invalid URL in batch",
 			requestBody:    `[{"correlation_id": "1", "original_url": "invalid-url"}]`,
 			userID:         "user123",
-			urlCheckerErr:  errors.New("invalid URL"),
 			storeBatchErr:  nil,
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Bad Request\n",
@@ -68,7 +66,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			name:           "unauthorized user",
 			requestBody:    `[{"correlation_id": "1", "original_url": "https://example.com"}]`,
 			userID:         "",
-			urlCheckerErr:  nil,
 			storeBatchErr:  nil,
 			expectedStatus: http.StatusInternalServerError,
 			expectedBody:   "Internal Server Error\n",
@@ -77,7 +74,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			name:           "conflict error",
 			requestBody:    `[{"correlation_id": "1", "original_url": "https://example.com"}]`,
 			userID:         "user123",
-			urlCheckerErr:  nil,
 			storeBatchErr:  repository.NewConflictError("http://localhost:8080/existing", repository.ErrURLExists),
 			expectedStatus: http.StatusConflict,
 			expectedBody:   `{"result":"http://localhost:8080/existing"}`,
@@ -86,7 +82,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			name:           "repository error",
 			requestBody:    `[{"correlation_id": "1", "original_url": "https://example.com"}]`,
 			userID:         "user123",
-			urlCheckerErr:  nil,
 			storeBatchErr:  errors.New("database error"),
 			expectedStatus: http.StatusInternalServerError,
 			expectedBody:   "Internal Server Error\n",
@@ -95,7 +90,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			name:           "empty batch array",
 			requestBody:    `[]`,
 			userID:         "user123",
-			urlCheckerErr:  nil,
 			storeBatchErr:  nil,
 			expectedStatus: http.StatusCreated,
 			expectedBody:   `[]`,
@@ -104,7 +98,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			name:           "missing correlation_id",
 			requestBody:    `[{"original_url": "https://example.com"}]`,
 			userID:         "user123",
-			urlCheckerErr:  nil,
 			storeBatchErr:  nil,
 			expectedStatus: http.StatusCreated,
 			expectedBody:   `[{"correlation_id":"","short_url":"http://localhost:8080/abc1"}]`,
@@ -113,7 +106,6 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			name:           "missing original_url",
 			requestBody:    `[{"correlation_id": "1"}]`,
 			userID:         "user123",
-			urlCheckerErr:  errors.New("empty URL"),
 			storeBatchErr:  nil,
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Bad Request\n",
@@ -130,19 +122,22 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			}
 
 			mockRepo := mocks.NewMockRepository(ctrl)
-			mockURLChecker := mocks.NewMockURLChecker(ctrl)
+			validator := validate.NewService()
+			randomizer := random.NewService()
+			urlService := urlDomain.NewService(randomizer, validator)
 
 			if tt.userID != "" && tt.requestBody != "" && !strings.Contains(tt.requestBody, "invalid") {
 				var batchReqs []BatchRequest
 				if err := json.Unmarshal([]byte(tt.requestBody), &batchReqs); err == nil {
+					// Check if all URLs are non-empty
+					allValid := true
 					for _, req := range batchReqs {
-						if req.OriginalURL != "" {
-							mockURLChecker.EXPECT().CheckURL(req.OriginalURL).Return(tt.urlCheckerErr)
-						} else if tt.name == "missing original_url" {
-							mockURLChecker.EXPECT().CheckURL("").Return(tt.urlCheckerErr)
+						if req.OriginalURL == "" {
+							allValid = false
+							break
 						}
 					}
-					if tt.urlCheckerErr == nil {
+					if allValid {
 						urls := make([]repository.BatchURLInput, len(batchReqs))
 						for i, req := range batchReqs {
 							urls[i] = repository.BatchURLInput{
@@ -160,13 +155,9 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 						mockRepo.EXPECT().StoreBatch(tt.userID, cfg.BaseURL, urls).Return(results, tt.storeBatchErr)
 					}
 				}
-			} else if tt.userID != "" && strings.Contains(tt.requestBody, "invalid-url") {
-				mockURLChecker.EXPECT().CheckURL("invalid-url").Return(tt.urlCheckerErr)
-			} else if tt.name == "unauthorized user" {
-				mockURLChecker.EXPECT().CheckURL("https://example.com").Return(nil)
 			}
 
-			handler := NewSaveJSONBatchHandler(cfg, mockRepo, mockURLChecker)
+			handler := NewSaveJSONBatchHandler(cfg, mockRepo, urlService)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(tt.requestBody))
 			req.Header.Set("Content-Type", "application/json")

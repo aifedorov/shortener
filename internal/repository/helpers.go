@@ -100,35 +100,6 @@ func (p *PostgresRepository) fetchAliasWithUserID(userID, originalURL string) (s
 	return alias, nil
 }
 
-func (p *PostgresRepository) fetchAlias(originalURL string) (string, error) {
-	var alias string
-	row := p.db.QueryRowContext(p.ctx, "SELECT alias FROM urls WHERE original_url = $1", originalURL)
-	err := row.Scan(&alias)
-
-	if err != nil {
-		logger.Log.Error("postgres: failed to fetch data", zap.Error(err))
-		return "", errors.New("failed to fetch data")
-	}
-	return alias, nil
-}
-
-func (p *PostgresRepository) fetchOriginalURLWithUserID(userID, alias string) (string, error) {
-	query := "SELECT original_url FROM urls WHERE alias = $1 AND user_id = $2"
-	row := p.db.QueryRowContext(p.ctx, query, alias, userID)
-
-	var originalURL string
-	err := row.Scan(&originalURL)
-	if errors.Is(err, sql.ErrNoRows) {
-		logger.Log.Error("postgres: original url not found", zap.String("alias", alias), zap.String("userID", userID))
-		return "", ErrShortURLNotFound
-	}
-	if err != nil {
-		logger.Log.Error("postgres: failed to fetch original url", zap.Error(err))
-		return "", errors.New("failed to fetch original url")
-	}
-	return originalURL, nil
-}
-
 func (p *PostgresRepository) fetchOriginalURL(alias string) (string, error) {
 	query := "SELECT original_url, is_deleted FROM urls WHERE alias = $1"
 	row := p.db.QueryRowContext(p.ctx, query, alias)

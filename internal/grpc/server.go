@@ -8,11 +8,12 @@ import (
 
 	pb "github.com/aifedorov/shortener/api/grpc/gen/shortener/v1"
 	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/grpc/middleware/auth"
 	"github.com/aifedorov/shortener/internal/grpc/middleware/ipcheck"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/pkg/jwt"
-	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -23,7 +24,6 @@ import (
 	_ "google.golang.org/grpc/encoding/gzip"
 )
 
-// Error message constants
 const (
 	errMsgInvalidURL      = "invalid url"
 	errMsgUnauthenticated = "unauthenticated"
@@ -38,19 +38,27 @@ const (
 
 type ShortenerServer struct {
 	pb.UnimplementedShortenerServiceServer
-	cfg        *config.Config
-	grpc       *grpc.Server
-	repo       repository.Repository
-	urlChecker validate.URLChecker
-	jwtChecker jwt.JWT
+	cfg         *config.Config
+	grpc        *grpc.Server
+	repo        repository.Repository
+	urlService  urlDomain.Service
+	userService *userDomain.Service
+	jwtChecker  jwt.JWT
 }
 
-func NewShortenerServer(cfg *config.Config, repo repository.Repository, urlChecker validate.URLChecker, jwtChecker jwt.JWT) *ShortenerServer {
+func NewShortenerServer(
+	cfg *config.Config,
+	repo repository.Repository,
+	urlService urlDomain.Service,
+	userService *userDomain.Service,
+	jwtChecker jwt.JWT,
+) *ShortenerServer {
 	return &ShortenerServer{
-		cfg:        cfg,
-		repo:       repo,
-		urlChecker: urlChecker,
-		jwtChecker: jwtChecker,
+		cfg:         cfg,
+		repo:        repo,
+		urlService:  urlService,
+		userService: userService,
+		jwtChecker:  jwtChecker,
 	}
 }
 
@@ -79,7 +87,7 @@ func (s *ShortenerServer) Run() error {
 
 func (s *ShortenerServer) CreateShortURL(ctx context.Context, request *pb.CreateShortURLRequest) (*pb.CreateShortURLResponse, error) {
 	url := request.GetUrl()
-	if err := s.urlChecker.CheckURL(url); err != nil {
+	if err := s.urlService.ValidateURL(url); err != nil {
 		logger.Log.Error("grpc: create short url: invalid url", zap.Error(err))
 		return nil, status.Error(codes.InvalidArgument, errMsgInvalidURL)
 	}
@@ -105,7 +113,7 @@ func (s *ShortenerServer) BatchCreateShortURL(ctx context.Context, request *pb.B
 	inputURLs := make([]repository.BatchURLInput, len(urls))
 
 	for i, url := range urls {
-		if err := s.urlChecker.CheckURL(url.OriginalUrl); err != nil {
+		if err := s.urlService.ValidateURL(url.OriginalUrl); err != nil {
 			logger.Log.Error("grpc: batch create short url: invalid url", zap.Error(err))
 			return nil, status.Error(codes.InvalidArgument, errMsgInvalidURL)
 		}

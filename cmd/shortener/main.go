@@ -12,10 +12,13 @@ import (
 	"time"
 
 	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	grpcserver "github.com/aifedorov/shortener/internal/grpc"
 	httpserver "github.com/aifedorov/shortener/internal/http"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/pkg/jwt"
+	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -59,9 +62,16 @@ func main() {
 	defer stop()
 
 	authService := jwt.NewService(cfg.SecretKey, tokenExp)
+	validator := validate.NewService()
+	randomizer := random.NewService()
+
+	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
+
 	repo := repository.NewRepository(ctx, cfg)
-	hSrv := httpserver.NewServer(ctx, cfg, repo, authService)
-	gSrv := grpcserver.NewShortenerServer(cfg, repo, validate.NewService(), authService)
+
+	hSrv := httpserver.NewServer(ctx, cfg, repo, authService, urlService, userService)
+	gSrv := grpcserver.NewShortenerServer(cfg, repo, urlService, userService, authService)
 
 	var wg sync.WaitGroup
 

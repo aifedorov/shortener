@@ -9,8 +9,11 @@ import (
 	"testing"
 
 	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
 	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/mocks"
+	"github.com/aifedorov/shortener/internal/pkg/random"
+	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +24,6 @@ func TestNewSavePlainTextHandler(t *testing.T) {
 		name           string
 		requestBody    string
 		userID         string
-		urlCheckerErr  error
 		storeErr       error
 		expectedStatus int
 		expectedBody   string
@@ -30,7 +32,6 @@ func TestNewSavePlainTextHandler(t *testing.T) {
 			name:           "successful URL shortening",
 			requestBody:    "https://example.com",
 			userID:         "user123",
-			urlCheckerErr:  nil,
 			storeErr:       nil,
 			expectedStatus: http.StatusCreated,
 			expectedBody:   "http://localhost:8080/abc123",
@@ -39,7 +40,6 @@ func TestNewSavePlainTextHandler(t *testing.T) {
 			name:           "invalid URL",
 			requestBody:    "invalid-url",
 			userID:         "user123",
-			urlCheckerErr:  errors.New("invalid URL"),
 			storeErr:       nil,
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Bad Request\n",
@@ -48,7 +48,6 @@ func TestNewSavePlainTextHandler(t *testing.T) {
 			name:           "unauthorized user",
 			requestBody:    "https://example.com",
 			userID:         "",
-			urlCheckerErr:  nil,
 			storeErr:       nil,
 			expectedStatus: http.StatusUnauthorized,
 			expectedBody:   "Unauthorized\n",
@@ -57,7 +56,6 @@ func TestNewSavePlainTextHandler(t *testing.T) {
 			name:           "conflict error",
 			requestBody:    "https://example.com",
 			userID:         "user123",
-			urlCheckerErr:  nil,
 			storeErr:       repository.NewConflictError("http://localhost:8080/existing", repository.ErrURLExists),
 			expectedStatus: http.StatusConflict,
 			expectedBody:   "http://localhost:8080/existing",
@@ -66,7 +64,6 @@ func TestNewSavePlainTextHandler(t *testing.T) {
 			name:           "repository error",
 			requestBody:    "https://example.com",
 			userID:         "user123",
-			urlCheckerErr:  nil,
 			storeErr:       errors.New("database error"),
 			expectedStatus: http.StatusInternalServerError,
 			expectedBody:   "Internal Server Error\n",
@@ -75,7 +72,6 @@ func TestNewSavePlainTextHandler(t *testing.T) {
 			name:           "empty request body",
 			requestBody:    "",
 			userID:         "user123",
-			urlCheckerErr:  errors.New("empty URL"),
 			storeErr:       nil,
 			expectedStatus: http.StatusBadRequest,
 			expectedBody:   "Bad Request\n",
@@ -92,16 +88,17 @@ func TestNewSavePlainTextHandler(t *testing.T) {
 			}
 
 			mockRepo := mocks.NewMockRepository(ctrl)
-			mockURLChecker := mocks.NewMockURLChecker(ctrl)
 
-			if tt.userID != "" {
-				mockURLChecker.EXPECT().CheckURL(tt.requestBody).Return(tt.urlCheckerErr)
-				if tt.urlCheckerErr == nil {
-					mockRepo.EXPECT().Store(tt.userID, cfg.BaseURL, tt.requestBody).Return("http://localhost:8080/abc123", tt.storeErr)
-				}
+			// Create real domain service (lightweight, no external dependencies)
+			validator := validate.NewService()
+			randomizer := random.NewService()
+			urlService := urlDomain.NewService(randomizer, validator)
+
+			if tt.userID != "" && tt.requestBody != "" && !strings.Contains(tt.requestBody, "invalid") {
+				mockRepo.EXPECT().Store(tt.userID, cfg.BaseURL, tt.requestBody).Return("http://localhost:8080/abc123", tt.storeErr)
 			}
 
-			handler := NewSavePlainTextHandler(cfg, mockRepo, mockURLChecker)
+			handler := NewSavePlainTextHandler(cfg, mockRepo, urlService)
 
 			req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.requestBody))
 			req.Header.Set("Content-Type", "text/plain")
@@ -135,9 +132,13 @@ func TestNewSavePlainTextHandler_ReadBodyError(t *testing.T) {
 	}
 
 	mockRepo := mocks.NewMockRepository(ctrl)
-	mockURLChecker := mocks.NewMockURLChecker(ctrl)
 
-	handler := NewSavePlainTextHandler(cfg, mockRepo, mockURLChecker)
+	// Create real domain service (lightweight, no external dependencies)
+	validator := validate.NewService()
+	randomizer := random.NewService()
+	urlService := urlDomain.NewService(randomizer, validator)
+
+	handler := NewSavePlainTextHandler(cfg, mockRepo, urlService)
 
 	req := httptest.NewRequest(http.MethodPost, "/", &errorReader{})
 	req.Header.Set("Content-Type", "text/plain")
@@ -155,6 +156,6 @@ func TestNewSavePlainTextHandler_ReadBodyError(t *testing.T) {
 
 type errorReader struct{}
 
-func (e *errorReader) Read(p []byte) (n int, err error) {
+func (e *errorReader) Read(_ []byte) (n int, err error) {
 	return 0, errors.New("read error")
 }

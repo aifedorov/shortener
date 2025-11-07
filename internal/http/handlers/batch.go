@@ -5,16 +5,16 @@ import (
 	"net/http"
 
 	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
 	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
-	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 )
 
 // NewSaveJSONBatchHandler creates a new HTTP handler for batch URL shortening operations.
 // This handler requires user authentication. If the user is not authenticated, a cookie will be created for them.
 // It accepts a JSON array of URLs and returns a JSON array of shortened URLs with correlation IDs.
-func NewSaveJSONBatchHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
+func NewSaveJSONBatchHandler(config *config.Config, repo repository.Repository, urlService urlDomain.Service) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
@@ -24,7 +24,7 @@ func NewSaveJSONBatchHandler(config *config.Config, repo repository.Repository, 
 			return
 		}
 
-		urls, err := validateURLs(reqURLs, urlChecker)
+		urls, err := validateURLs(reqURLs, urlService)
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return

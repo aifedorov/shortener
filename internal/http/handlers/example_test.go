@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 
 	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 )
@@ -19,11 +21,13 @@ func ExampleNewSavePlainTextHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
-	// Create URL checker
-	urlChecker := validate.NewService()
+	// Create domain service
+	validator := validate.NewService()
+	randomizer := random.NewService()
+	urlService := urlDomain.NewService(randomizer, validator)
 
 	// Create the handler
-	_ = NewSavePlainTextHandler(cfg, repo, urlChecker)
+	_ = NewSavePlainTextHandler(cfg, repo, urlService)
 
 	// The handler is now ready to process plain text URL shortening requests
 	// Note: In a real application, this handler requires user authentication
@@ -45,11 +49,13 @@ func ExampleNewSaveJSONHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
-	// Create URL checker
-	urlChecker := validate.NewService()
+	// Create domain service
+	validator := validate.NewService()
+	randomizer := random.NewService()
+	urlService := urlDomain.NewService(randomizer, validator)
 
 	// Create the handler
-	_ = NewSaveJSONHandler(cfg, repo, urlChecker)
+	_ = NewSaveJSONHandler(cfg, repo, urlService)
 
 	// The handler is now ready to process JSON URL shortening requests
 	// Note: In a real application, this handler requires user authentication
@@ -71,11 +77,13 @@ func ExampleNewSaveJSONBatchHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
-	// Create URL checker
-	urlChecker := validate.NewService()
+	// Create domain service
+	validator := validate.NewService()
+	randomizer := random.NewService()
+	urlService := urlDomain.NewService(randomizer, validator)
 
 	// Create the handler
-	_ = NewSaveJSONBatchHandler(cfg, repo, urlChecker)
+	_ = NewSaveJSONBatchHandler(cfg, repo, urlService)
 
 	// The handler is now ready to process batch URL shortening requests
 	// Note: In a real application, this handler requires user authentication

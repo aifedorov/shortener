@@ -4,10 +4,9 @@ import (
 	"net/http"
 
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
+	"github.com/aifedorov/shortener/internal/repository"
 
 	"go.uber.org/zap"
-
-	"github.com/aifedorov/shortener/internal/repository"
 )
 
 // NewPingHandler creates a new HTTP handler for health check operations.
