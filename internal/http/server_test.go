@@ -11,17 +11,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/aifedorov/shortener/internal/config"
 	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
 	userDomain "github.com/aifedorov/shortener/internal/domain/user"
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/mocks"
 	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 )
 
-func createDomainServices() (urlDomain.Service, *userDomain.Service) {
+func createDomainServices() (urlDomain.Service, userDomain.Service) {
 	validator := validate.NewService()
 	randomizer := random.NewService()
 	urlService := urlDomain.NewService(randomizer, validator)
@@ -46,10 +47,11 @@ func TestServer_Integration(t *testing.T) {
 		mockRepo.EXPECT().Ping().Return(nil)
 
 		urlService, userService := createDomainServices()
-		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT, urlService, userService)
+		server := NewServer(context.Background(), newMockConfig(), chi.NewRouter(), mockRepo, mockJWT, urlService, userService)
+		server.MountRoutes()
 
 		userID := uuid.NewString()
-		ctx := context.WithValue(context.Background(), auth.UserIDKey, userID)
+		ctx := userService.SetUserIDToContext(context.Background(), userID)
 
 		// 1. Create short URL via plain text
 		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com")).WithContext(ctx)
@@ -85,10 +87,11 @@ func TestServer_Integration(t *testing.T) {
 		mockRepo := mocks.NewMockRepository(ctrl)
 		mockJWT := mocks.NewMockJWT(ctrl)
 		urlService, userService := createDomainServices()
-		server := NewServer(context.Background(), cfg, mockRepo, mockJWT, urlService, userService)
+		server := NewServer(context.Background(), cfg, chi.NewRouter(), mockRepo, mockJWT, urlService, userService)
+		server.MountRoutes()
 
 		assert.NotNil(t, server)
-		assert.Equal(t, cfg, server.config)
+		assert.Equal(t, cfg, server.cfg)
 		assert.Equal(t, mockRepo, server.repo)
 	})
 
@@ -100,7 +103,8 @@ func TestServer_Integration(t *testing.T) {
 		mockJWT := mocks.NewMockJWT(ctrl)
 		// JWT middleware won't be reached because Content-Type middleware returns error first
 		urlService, userService := createDomainServices()
-		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT, urlService, userService)
+		server := NewServer(context.Background(), newMockConfig(), chi.NewRouter(), mockRepo, mockJWT, urlService, userService)
+		server.MountRoutes()
 
 		// Test without user ID (should return unsupported media type since no Content-Type header)
 		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com"))
@@ -121,7 +125,8 @@ func TestServer_ErrorHandling(t *testing.T) {
 		mockJWT.EXPECT().Generate(gomock.Any()).Return("mock-jwt-token", nil)
 		mockRepo.EXPECT().Get("nonexistent").Return("", repository.ErrShortURLNotFound)
 		urlService, userService := createDomainServices()
-		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT, urlService, userService)
+		server := NewServer(context.Background(), newMockConfig(), chi.NewRouter(), mockRepo, mockJWT, urlService, userService)
+		server.MountRoutes()
 
 		req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
 		res := executeRequest(req, server)
@@ -136,7 +141,8 @@ func TestServer_ErrorHandling(t *testing.T) {
 		mockJWT := mocks.NewMockJWT(ctrl)
 		mockJWT.EXPECT().Generate(gomock.Any()).Return("mock-jwt-token", nil)
 		urlService, userService := createDomainServices()
-		server := NewServer(context.Background(), newMockConfig(), mockRepo, mockJWT, urlService, userService)
+		server := NewServer(context.Background(), newMockConfig(), chi.NewRouter(), mockRepo, mockJWT, urlService, userService)
+		server.MountRoutes()
 
 		req := httptest.NewRequest(http.MethodPut, "/", nil)
 		res := executeRequest(req, server)

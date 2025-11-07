@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +9,7 @@ import (
 
 	"github.com/aifedorov/shortener/internal/config"
 	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/mocks"
 	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
@@ -93,18 +92,19 @@ func TestNewSavePlainTextHandler(t *testing.T) {
 			validator := validate.NewService()
 			randomizer := random.NewService()
 			urlService := urlDomain.NewService(randomizer, validator)
+			userService := userDomain.NewService()
 
 			if tt.userID != "" && tt.requestBody != "" && !strings.Contains(tt.requestBody, "invalid") {
 				mockRepo.EXPECT().Store(tt.userID, cfg.BaseURL, tt.requestBody).Return("http://localhost:8080/abc123", tt.storeErr)
 			}
 
-			handler := NewSavePlainTextHandler(cfg, mockRepo, urlService)
+			handler := NewSavePlainTextHandler(cfg, mockRepo, urlService, userService)
 
 			req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.requestBody))
 			req.Header.Set("Content-Type", "text/plain")
 
 			if tt.userID != "" {
-				ctx := context.WithValue(req.Context(), auth.UserIDKey, tt.userID)
+				ctx := userService.SetUserIDToContext(req.Context(), tt.userID)
 				req = req.WithContext(ctx)
 			}
 
@@ -137,13 +137,14 @@ func TestNewSavePlainTextHandler_ReadBodyError(t *testing.T) {
 	validator := validate.NewService()
 	randomizer := random.NewService()
 	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
 
-	handler := NewSavePlainTextHandler(cfg, mockRepo, urlService)
+	handler := NewSavePlainTextHandler(cfg, mockRepo, urlService, userService)
 
 	req := httptest.NewRequest(http.MethodPost, "/", &errorReader{})
 	req.Header.Set("Content-Type", "text/plain")
 
-	ctx := context.WithValue(req.Context(), auth.UserIDKey, "user123")
+	ctx := userService.SetUserIDToContext(req.Context(), "user123")
 	req = req.WithContext(ctx)
 
 	rr := httptest.NewRecorder()

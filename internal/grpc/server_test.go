@@ -10,7 +10,6 @@ import (
 	"github.com/aifedorov/shortener/internal/config"
 	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
 	userDomain "github.com/aifedorov/shortener/internal/domain/user"
-	"github.com/aifedorov/shortener/internal/grpc/middleware/auth"
 	"github.com/aifedorov/shortener/internal/mocks"
 	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
@@ -22,7 +21,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func createDomainServices() (urlDomain.Service, *userDomain.Service) {
+func createDomainServices() (urlDomain.Service, userDomain.Service) {
 	validator := validate.NewService()
 	randomizer := random.NewService()
 	urlService := urlDomain.NewService(randomizer, validator)
@@ -112,7 +111,7 @@ func TestShortenerServer_CreateShortURL(t *testing.T) {
 
 			urlService, userService := createDomainServices()
 			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
+			ctx := userService.SetUserIDToContext(context.Background(), "1")
 			resp, err := server.CreateShortURL(ctx, tt.request)
 
 			if tt.wantErr {
@@ -238,7 +237,7 @@ func TestShortenerServer_BatchCreateShortURL(t *testing.T) {
 
 			urlService, userService := createDomainServices()
 			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
+			ctx := userService.SetUserIDToContext(context.Background(), "1")
 			resp, err := server.BatchCreateShortURL(ctx, tt.request)
 
 			if tt.wantErr {
@@ -327,7 +326,7 @@ func TestShortenerServer_GetShortURL(t *testing.T) {
 
 			urlService, userService := createDomainServices()
 			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
+			ctx := userService.SetUserIDToContext(context.Background(), "1")
 			resp, err := server.GetShortURL(ctx, tt.request)
 
 			if tt.wantErr {
@@ -378,7 +377,7 @@ func TestShortenerServer_Ping(t *testing.T) {
 
 			urlService, userService := createDomainServices()
 			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
+			ctx := userService.SetUserIDToContext(context.Background(), "1")
 			resp, err := server.Ping(ctx, &pb.PingRequest{})
 
 			if tt.wantErr {
@@ -461,7 +460,7 @@ func TestShortenerServer_ListShortURLs(t *testing.T) {
 
 			urlService, userService := createDomainServices()
 			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
+			ctx := userService.SetUserIDToContext(context.Background(), "1")
 			resp, err := server.ListShortURLs(ctx, &pb.ListShortURLsRequest{})
 
 			if tt.wantErr {
@@ -644,7 +643,7 @@ func TestShortenerServer_DeleteURLs(t *testing.T) {
 
 			urlService, userService := createDomainServices()
 			server := NewShortenerServer(newMockConfig(), mockRepo, urlService, userService, mockJWT)
-			ctx := context.WithValue(context.Background(), auth.GetUserIDKey(), "1")
+			ctx := userService.SetUserIDToContext(context.Background(), "1")
 			resp, err := server.DeleteURLs(ctx, tt.request)
 
 			if tt.wantErr {

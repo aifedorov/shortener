@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +11,7 @@ import (
 
 	"github.com/aifedorov/shortener/internal/config"
 	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/mocks"
 	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
@@ -125,6 +124,7 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 			validator := validate.NewService()
 			randomizer := random.NewService()
 			urlService := urlDomain.NewService(randomizer, validator)
+			userService := userDomain.NewService()
 
 			if tt.userID != "" && tt.requestBody != "" && !strings.Contains(tt.requestBody, "invalid") {
 				var batchReqs []BatchRequest
@@ -157,13 +157,13 @@ func TestNewSaveJSONBatchHandler(t *testing.T) {
 				}
 			}
 
-			handler := NewSaveJSONBatchHandler(cfg, mockRepo, urlService)
+			handler := NewSaveJSONBatchHandler(cfg, mockRepo, urlService, userService)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(tt.requestBody))
 			req.Header.Set("Content-Type", "application/json")
 
 			if tt.userID != "" {
-				ctx := context.WithValue(req.Context(), auth.UserIDKey, tt.userID)
+				ctx := userService.SetUserIDToContext(req.Context(), tt.userID)
 				req = req.WithContext(ctx)
 			}
 

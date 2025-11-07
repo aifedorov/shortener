@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -9,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -88,6 +87,7 @@ func TestNewDeleteHandler(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockRepo := mocks.NewMockRepository(ctrl)
+			userService := userDomain.NewService()
 
 			if tt.userID != "" {
 				var aliases []string
@@ -96,13 +96,13 @@ func TestNewDeleteHandler(t *testing.T) {
 				}
 			}
 
-			handler := NewDeleteHandler(mockRepo)
+			handler := NewDeleteHandler(mockRepo, userService)
 
 			req := httptest.NewRequest(http.MethodDelete, "/api/user/urls", strings.NewReader(tt.requestBody))
 			req.Header.Set("Content-Type", "application/json")
 
 			if tt.userID != "" {
-				ctx := context.WithValue(req.Context(), auth.UserIDKey, tt.userID)
+				ctx := userService.SetUserIDToContext(req.Context(), tt.userID)
 				req = req.WithContext(ctx)
 			}
 

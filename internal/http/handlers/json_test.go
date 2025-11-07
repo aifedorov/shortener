@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -11,7 +10,7 @@ import (
 
 	"github.com/aifedorov/shortener/internal/config"
 	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/mocks"
 	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
@@ -117,6 +116,7 @@ func TestNewSaveJSONHandler(t *testing.T) {
 			validator := validate.NewService()
 			randomizer := random.NewService()
 			urlService := urlDomain.NewService(randomizer, validator)
+			userService := userDomain.NewService()
 
 			if tt.userID != "" {
 				if tt.requestBody != "" && !strings.Contains(tt.requestBody, "invalid") && !strings.Contains(tt.requestBody, `"url": "invalid-url"`) && tt.requestBody != `{}` {
@@ -127,13 +127,13 @@ func TestNewSaveJSONHandler(t *testing.T) {
 				}
 			}
 
-			handler := NewSaveJSONHandler(cfg, mockRepo, urlService)
+			handler := NewSaveJSONHandler(cfg, mockRepo, urlService, userService)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(tt.requestBody))
 			req.Header.Set("Content-Type", "application/json")
 
 			if tt.userID != "" {
-				ctx := context.WithValue(req.Context(), auth.UserIDKey, tt.userID)
+				ctx := userService.SetUserIDToContext(req.Context(), tt.userID)
 				req = req.WithContext(ctx)
 			}
 

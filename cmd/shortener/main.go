@@ -21,6 +21,7 @@ import (
 	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
+	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 )
@@ -70,7 +71,7 @@ func main() {
 
 	repo := repository.NewRepository(ctx, cfg)
 
-	hSrv := httpserver.NewServer(ctx, cfg, repo, authService, urlService, userService)
+	hSrv := httpserver.NewServer(ctx, cfg, chi.NewRouter(), repo, authService, urlService, userService)
 	gSrv := grpcserver.NewShortenerServer(cfg, repo, urlService, userService, authService)
 
 	var wg sync.WaitGroup

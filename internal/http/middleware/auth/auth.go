@@ -1,35 +1,16 @@
 package auth
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/aifedorov/shortener/internal/domain/user"
 	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/pkg/jwt"
 )
-
-// ContextKey is a custom type for context keys to avoid collisions
-type ContextKey string
-
-// UserIDKey is the context key used to store the user ID in request context.
-const UserIDKey = ContextKey("user_id")
-
-// GetUserID extracts the user ID from the context.
-// Returns an error if user ID is not present in the context or is empty.
-func GetUserID(ctx context.Context) (string, error) {
-	userID, ok := ctx.Value(UserIDKey).(string)
-	if !ok || userID == "" {
-		return "", ErrUserIDNotFound
-	}
-	return userID, nil
-}
-
-var ErrUserIDNotFound = errors.New("user_id not found")
 
 const (
 	// cookieExp defines the cookie expiration time (24 hours).
@@ -40,14 +21,16 @@ const (
 
 // Middleware provides JWT-based authentication middleware for HTTP handlers.
 type Middleware struct {
-	jwtService jwt.JWT
+	jwtService  jwt.JWT
+	userService user.Service
 }
 
 // NewMiddleware creates a new authentication middleware instance.
 // The secretKey is used for JWT token signing and validation.
-func NewMiddleware(authService jwt.JWT) *Middleware {
+func NewMiddleware(authService jwt.JWT, userService user.Service) *Middleware {
 	return &Middleware{
-		jwtService: authService,
+		jwtService:  authService,
+		userService: userService,
 	}
 }
 
@@ -65,10 +48,10 @@ func (m *Middleware) JWTAuth(next http.Handler) http.Handler {
 			logger.Log.Info("auth: cookie not present", zap.String("name", tokenName))
 
 			logger.Log.Debug("auth: creating new user_id")
-			userID := uuid.NewString()
+			userID := m.userService.GenerateUserID()
 			setNewCookies(userID, m.jwtService, w)
 
-			ctx := context.WithValue(r.Context(), UserIDKey, userID)
+			ctx := m.userService.SetUserIDToContext(r.Context(), userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
@@ -80,14 +63,14 @@ func (m *Middleware) JWTAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), UserIDKey, userID)
+		ctx := m.userService.SetUserIDToContext(r.Context(), userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-func setNewCookies(userID string, jwtManager jwt.JWT, w http.ResponseWriter) {
+func setNewCookies(userID string, jwtService jwt.JWT, w http.ResponseWriter) {
 	logger.Log.Debug("auth: setting new cookies", zap.String("user_id", userID))
-	token, err := jwtManager.Generate(userID)
+	token, err := jwtService.Generate(userID)
 	if err != nil {
 		logger.Log.Error("auth: failed to build JWT token", zap.String("error", err.Error()))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

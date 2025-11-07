@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 
+	"github.com/aifedorov/shortener/internal/domain/user"
 	"go.uber.org/zap"
 
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 )
@@ -13,7 +13,7 @@ import (
 // NewDeleteHandler creates a new HTTP handler for batch URL deletion operations.
 // This handler requires user authentication. If the user is not authenticated, a cookie will be created for them.
 // It accepts a JSON array of short URL aliases and marks them as deleted asynchronously.
-func NewDeleteHandler(repo repository.Repository) http.HandlerFunc {
+func NewDeleteHandler(repo repository.Repository, userService user.Service) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
@@ -23,7 +23,7 @@ func NewDeleteHandler(repo repository.Repository) http.HandlerFunc {
 			return
 		}
 
-		userID, err := auth.GetUserID(r.Context())
+		userID, err := userService.GetUserIDFromContext(r.Context())
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return

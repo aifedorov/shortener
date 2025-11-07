@@ -37,8 +37,12 @@ var supportedContentTypes = []string{
 // Server represents the HTTP server for the URL shortener application.
 // It manages HTTP routes, middleware, and coordinates between handlers and the repository.
 type Server struct {
-	// config holds the application configuration settings.
-	config *config.Config
+	// ctx is the background context for the server.
+	ctx context.Context
+	// cfg holds the application configuration settings.
+	cfg *config.Config
+	// router is the Chi router instance.
+	router chi.Router
 	// repo is the repository interface for data persistence.
 	repo repository.Repository
 	// authService is the JWT authentication service.
@@ -46,9 +50,7 @@ type Server struct {
 	// urlService is the domain service for URL operations.
 	urlService urlDomain.Service
 	// userService is the domain service for user operations.
-	userService *userDomain.Service
-	// ctx is the background context for the server.
-	ctx context.Context
+	userService userDomain.Service
 	// srv is the HTTP server instance.
 	srv *http.Server
 }
@@ -58,21 +60,23 @@ type Server struct {
 func NewServer(
 	ctx context.Context,
 	cfg *config.Config,
+	router *chi.Mux,
 	repo repository.Repository,
 	authService jwt.JWT,
 	urlService urlDomain.Service,
-	userService *userDomain.Service,
+	userService userDomain.Service,
 ) *Server {
 	return &Server{
-		config:      cfg,
+		ctx:         ctx,
+		cfg:         cfg,
+		router:      router,
 		repo:        repo,
 		authService: authService,
 		urlService:  urlService,
 		userService: userService,
-		ctx:         ctx,
 		srv: &http.Server{
 			Addr:    cfg.RunAddr,
-			Handler: newRouter(cfg, repo, urlService, authService),
+			Handler: router,
 		},
 	}
 }
@@ -80,16 +84,18 @@ func NewServer(
 // Run starts the HTTP server and begins listening for requests.
 // It initializes the logger, repository, middleware, and mounts all route handlers.
 func (s *Server) Run() error {
+	s.MountRoutes()
+
 	err := s.repo.Run()
 	if err != nil {
 		logger.Log.Fatal("server: failed to run repository", zap.Error(err))
 	}
 
-	if s.config.EnableHTTPS {
-		logger.Log.Info("HTTPS server: running on", zap.String("address", s.config.RunAddr))
+	if s.cfg.EnableHTTPS {
+		logger.Log.Info("HTTPS server: running on", zap.String("address", s.cfg.RunAddr))
 		return s.srv.ListenAndServeTLS("cert.pem", "key.pem")
 	} else {
-		logger.Log.Info("HTTP server: running on", zap.String("address", s.config.RunAddr))
+		logger.Log.Info("HTTP server: running on", zap.String("address", s.cfg.RunAddr))
 		return s.srv.ListenAndServe()
 	}
 }
@@ -99,32 +105,28 @@ func (s *Server) Shutdown() error {
 	return s.srv.Shutdown(s.ctx)
 }
 
-// NewRouter create a new roture then registers all HTTP route handlers and middleware.
-func newRouter(cfg *config.Config, repo repository.Repository, urlService urlDomain.Service, authService jwt.JWT) *chi.Mux {
-	router := chi.NewRouter()
+// MountRoutes creates a new router then registers all HTTP route handlers and middleware.
+func (s *Server) MountRoutes() {
+	s.router.Use(chimiddleware.AllowContentType(supportedContentTypes...))
+	s.router.Use(compress.GzipMiddleware)
+	s.router.Use(logger.RequestLogger)
+	s.router.Use(logger.ResponseLogger)
 
-	router.Use(chimiddleware.AllowContentType(supportedContentTypes...))
-	router.Use(compress.GzipMiddleware)
-	router.Use(logger.RequestLogger)
-	router.Use(logger.ResponseLogger)
+	authm := auth.NewMiddleware(s.authService, s.userService)
+	s.router.Use(authm.JWTAuth)
 
-	authm := auth.NewMiddleware(authService)
-	router.Use(authm.JWTAuth)
-
-	router.Post("/", handlers.NewSavePlainTextHandler(cfg, repo, urlService))
-	router.Post("/api/shorten", handlers.NewSaveJSONHandler(cfg, repo, urlService))
-	router.Post("/api/shorten/batch", handlers.NewSaveJSONBatchHandler(cfg, repo, urlService))
-	router.Get("/{shortURL}", handlers.NewRedirectHandler(repo))
-	router.Get("/", func(res http.ResponseWriter, r *http.Request) {
+	s.router.Post("/", handlers.NewSavePlainTextHandler(s.cfg, s.repo, s.urlService, s.userService))
+	s.router.Post("/api/shorten", handlers.NewSaveJSONHandler(s.cfg, s.repo, s.urlService, s.userService))
+	s.router.Post("/api/shorten/batch", handlers.NewSaveJSONBatchHandler(s.cfg, s.repo, s.urlService, s.userService))
+	s.router.Get("/{shortURL}", handlers.NewRedirectHandler(s.repo))
+	s.router.Get("/", func(res http.ResponseWriter, r *http.Request) {
 		logger.Log.Debug("server: got request with bad data", zap.String("method", r.Method))
 		http.Error(res, ErrShortURLMissing.Error(), http.StatusBadRequest)
 	})
-	router.Get("/ping", handlers.NewPingHandler(repo))
-	router.Get("/api/user/urls", handlers.NewURLsHandler(cfg, repo))
-	router.Delete("/api/user/urls", handlers.NewDeleteHandler(repo))
+	s.router.Get("/ping", handlers.NewPingHandler(s.repo))
+	s.router.Get("/api/user/urls", handlers.NewURLsHandler(s.cfg, s.repo, s.userService))
+	s.router.Delete("/api/user/urls", handlers.NewDeleteHandler(s.repo, s.userService))
 
-	ipcheckm := ipcheck.NewMiddleware(cfg.TrustedIPNet)
-	router.With(ipcheckm.IPCheck).Get("/api/internal/stats", handlers.NewStatsHandler(repo))
-
-	return router
+	ipcheckm := ipcheck.NewMiddleware(s.cfg.TrustedIPNet)
+	s.router.With(ipcheckm.IPCheck).Get("/api/internal/stats", handlers.NewStatsHandler(s.repo))
 }

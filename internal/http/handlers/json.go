@@ -6,7 +6,7 @@ import (
 
 	"github.com/aifedorov/shortener/internal/config"
 	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	"github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
 )
@@ -14,11 +14,11 @@ import (
 // NewSaveJSONHandler creates a new HTTP handler for single URL shortening operations via JSON.
 // This handler requires user authentication. If the user is not authenticated, a cookie will be created for them.
 // It accepts a JSON request with a URL and returns a JSON response with the shortened URL.
-func NewSaveJSONHandler(config *config.Config, repo repository.Repository, urlService urlDomain.Service) http.HandlerFunc {
+func NewSaveJSONHandler(config *config.Config, repo repository.Repository, urlService urlDomain.Service, userService user.Service) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
-		userID, err := auth.GetUserID(r.Context())
+		userID, err := userService.GetUserIDFromContext(r.Context())
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return

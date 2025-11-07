@@ -1,14 +1,13 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
@@ -188,16 +187,18 @@ func TestGetUserID(t *testing.T) {
 		},
 	}
 
+	userService := userDomain.NewService()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 
 			if tt.name != "no user ID in context" {
-				ctx := context.WithValue(req.Context(), auth.UserIDKey, tt.userID)
+				ctx := userService.SetUserIDToContext(req.Context(), tt.userID)
 				req = req.WithContext(ctx)
 			}
 
-			result, err := auth.GetUserID(req.Context())
+			result, err := userService.GetUserIDFromContext(req.Context())
 
 			if tt.expectError {
 				assert.Error(t, err)

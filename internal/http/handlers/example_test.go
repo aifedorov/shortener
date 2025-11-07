@@ -6,6 +6,7 @@ import (
 
 	"github.com/aifedorov/shortener/internal/config"
 	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
@@ -25,9 +26,10 @@ func ExampleNewSavePlainTextHandler() {
 	validator := validate.NewService()
 	randomizer := random.NewService()
 	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
 
 	// Create the handler
-	_ = NewSavePlainTextHandler(cfg, repo, urlService)
+	_ = NewSavePlainTextHandler(cfg, repo, urlService, userService)
 
 	// The handler is now ready to process plain text URL shortening requests
 	// Note: In a real application, this handler requires user authentication
@@ -53,9 +55,10 @@ func ExampleNewSaveJSONHandler() {
 	validator := validate.NewService()
 	randomizer := random.NewService()
 	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
 
 	// Create the handler
-	_ = NewSaveJSONHandler(cfg, repo, urlService)
+	_ = NewSaveJSONHandler(cfg, repo, urlService, userService)
 
 	// The handler is now ready to process JSON URL shortening requests
 	// Note: In a real application, this handler requires user authentication
@@ -81,9 +84,10 @@ func ExampleNewSaveJSONBatchHandler() {
 	validator := validate.NewService()
 	randomizer := random.NewService()
 	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
 
 	// Create the handler
-	_ = NewSaveJSONBatchHandler(cfg, repo, urlService)
+	_ = NewSaveJSONBatchHandler(cfg, repo, urlService, userService)
 
 	// The handler is now ready to process batch URL shortening requests
 	// Note: In a real application, this handler requires user authentication
@@ -123,8 +127,11 @@ func ExampleNewURLsHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
+	// Create user service
+	userService := userDomain.NewService()
+
 	// Create the handler
-	_ = NewURLsHandler(cfg, repo)
+	_ = NewURLsHandler(cfg, repo, userService)
 
 	// The handler is now ready to retrieve user URLs
 	// Note: In a real application, this handler requires user authentication
@@ -141,8 +148,11 @@ func ExampleNewDeleteHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
+	// Create user service
+	userService := userDomain.NewService()
+
 	// Create the handler
-	_ = NewDeleteHandler(repo)
+	_ = NewDeleteHandler(repo, userService)
 
 	// The handler is now ready to delete user URLs
 	// Note: In a real application, this handler requires user authentication

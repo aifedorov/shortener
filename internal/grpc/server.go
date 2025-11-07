@@ -42,7 +42,7 @@ type ShortenerServer struct {
 	grpc        *grpc.Server
 	repo        repository.Repository
 	urlService  urlDomain.Service
-	userService *userDomain.Service
+	userService userDomain.Service
 	jwtChecker  jwt.JWT
 }
 
@@ -50,7 +50,7 @@ func NewShortenerServer(
 	cfg *config.Config,
 	repo repository.Repository,
 	urlService urlDomain.Service,
-	userService *userDomain.Service,
+	userService userDomain.Service,
 	jwtChecker jwt.JWT,
 ) *ShortenerServer {
 	return &ShortenerServer{
@@ -68,7 +68,7 @@ func (s *ShortenerServer) Run() error {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
 
-	authInterceptor := auth.NewInterceptor(s.jwtChecker)
+	authInterceptor := auth.NewInterceptor(s.jwtChecker, s.userService)
 	ipcheckInterceptor := ipcheck.NewInterceptor(s.cfg.TrustedIPNet)
 
 	s.grpc = grpc.NewServer(
@@ -92,7 +92,7 @@ func (s *ShortenerServer) CreateShortURL(ctx context.Context, request *pb.Create
 		return nil, status.Error(codes.InvalidArgument, errMsgInvalidURL)
 	}
 
-	userID, err := auth.GetUserID(ctx)
+	userID, err := s.userService.GetUserIDFromContext(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, errMsgUnauthenticated)
 	}
@@ -124,7 +124,7 @@ func (s *ShortenerServer) BatchCreateShortURL(ctx context.Context, request *pb.B
 		}
 	}
 
-	userID, err := auth.GetUserID(ctx)
+	userID, err := s.userService.GetUserIDFromContext(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, errMsgUnauthenticated)
 	}
@@ -192,7 +192,7 @@ func (s *ShortenerServer) GetStats(_ context.Context, _ *pb.GetStatsRequest) (*p
 }
 
 func (s *ShortenerServer) ListShortURLs(ctx context.Context, _ *pb.ListShortURLsRequest) (*pb.ListShortURLsResponse, error) {
-	userID, err := auth.GetUserID(ctx)
+	userID, err := s.userService.GetUserIDFromContext(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, errMsgUnauthenticated)
 	}
@@ -221,7 +221,7 @@ func (s *ShortenerServer) ListShortURLs(ctx context.Context, _ *pb.ListShortURLs
 }
 
 func (s *ShortenerServer) DeleteURLs(ctx context.Context, request *pb.DeleteURLsRequest) (*pb.DeleteURLsResponse, error) {
-	userID, err := auth.GetUserID(ctx)
+	userID, err := s.userService.GetUserIDFromContext(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, errMsgUnauthenticated)
 	}
