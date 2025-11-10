@@ -55,3 +55,14 @@ type BatchResponse struct {
 func (r BatchResponse) String() string {
 	return fmt.Sprintf("{correlation_id: %s, short_url: %s}", r.CID, r.ShortURL)
 }
+
+// StatsResponse represents the JSON response for statistics endpoint.
+type StatsResponse struct {
+	URLs  int `json:"urls"`
+	Users int `json:"users"`
+}
+
+// String returns a string representation of the StatsResponse.
+func (s StatsResponse) String() string {
+	return fmt.Sprintf("{urls: %d, users: %d}", s.URLs, s.Users)
+}

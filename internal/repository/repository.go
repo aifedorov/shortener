@@ -57,6 +57,8 @@ type Repository interface {
 	StoreBatch(userID, baseURL string, urls []BatchURLInput) ([]BatchURLOutput, error)
 	// DeleteBatch marks multiple URLs as deleted for a specific user.
 	DeleteBatch(userID string, aliases []string) error
+	// GetStats returns statistics contains the number of URLs and users stored in the repository.
+	GetStats() (StatsOutput, error)
 }
 
 // NewRepository creates a new repository instance based on the provided configuration.
@@ -64,7 +66,7 @@ type Repository interface {
 // or an in-memory repository as fallback.
 func NewRepository(ctx context.Context, cfg *config.Config) Repository {
 	if cfg.DSN != "" {
-		logger.Log.Debug("repository: use posgres storage")
+		logger.Log.Debug("repository: use PosgreSQL storage")
 		return NewPosgresRepository(ctx, cfg.DSN)
 	}
 	if cfg.FileStoragePath != "" {

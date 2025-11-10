@@ -1,51 +1,42 @@
 package auth
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
-	"github.com/google/uuid"
+	"github.com/aifedorov/shortener/internal/domain/user"
 	"go.uber.org/zap"
 
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
+	"github.com/aifedorov/shortener/internal/pkg/jwt"
 )
 
-// ContextKey represents a type for context keys used in authentication.
-type ContextKey string
-
-// UserIDKey is the context key used to store the user ID in request context.
-const UserIDKey ContextKey = "user_id"
-
 const (
-	// tokenExp defines the JWT token expiration time.
-	tokenExp = time.Hour * 3
+	// cookieExp defines the cookie expiration time (24 hours).
+	cookieExp = time.Hour * 24
 	// tokenName is the name of the JWT cookie.
 	tokenName = "JWT"
 )
 
-// Claims represents the JWT claims structure for user authentication.
-type Claims struct {
-	jwt.RegisteredClaims
-	// UserID is the unique identifier for the authenticated user.
-	UserID string
-}
-
 // Middleware provides JWT-based authentication middleware for HTTP handlers.
 type Middleware struct {
-	// secretKey is used for signing and validating JWT tokens.
-	secretKey string
+	jwtService  jwt.JWT
+	userService user.Service
 }
 
 // NewMiddleware creates a new authentication middleware instance.
 // The secretKey is used for JWT token signing and validation.
-func NewMiddleware(secretKey string) *Middleware {
+func NewMiddleware(authService jwt.JWT, userService user.Service) *Middleware {
 	return &Middleware{
-		secretKey: secretKey,
+		jwtService:  authService,
+		userService: userService,
 	}
+}
+
+// GetJWTService returns the JWT manager instance for use in other components (e.g., gRPC interceptors).
+func (m *Middleware) GetJWTService() jwt.JWT {
+	return m.jwtService
 }
 
 // JWTAuth provides JWT-based authentication middleware.
@@ -57,57 +48,29 @@ func (m *Middleware) JWTAuth(next http.Handler) http.Handler {
 			logger.Log.Info("auth: cookie not present", zap.String("name", tokenName))
 
 			logger.Log.Debug("auth: creating new user_id")
-			userID := uuid.NewString()
-			setNewCookies(userID, m.secretKey, w)
+			userID := m.userService.GenerateUserID()
+			setNewCookies(userID, m.jwtService, w)
 
-			ctx := context.WithValue(r.Context(), UserIDKey, userID)
+			ctx := m.userService.SetUserIDToContext(r.Context(), userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
-		userID, err := parseUserID(cookie.Value, m.secretKey)
+		userID, err := m.jwtService.ParseWithUserID(cookie.Value)
 		if err != nil {
 			logger.Log.Error("auth: failed to get cookie", zap.String("name", tokenName), zap.Error(err))
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), UserIDKey, userID)
+		ctx := m.userService.SetUserIDToContext(r.Context(), userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-func parseUserID(tokenString, secretKey string) (string, error) {
-	logger.Log.Debug("auth: parsing token")
-	if tokenString == "" {
-		logger.Log.Error("auth: empty token")
-		return "", errors.New("auth: token is empty")
-	}
-
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims,
-		func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("auth: unexpected signing method: %v", t.Header["alg"])
-			}
-			return []byte(secretKey), nil
-		})
-	if err != nil {
-		logger.Log.Error("auth: error parsing token", zap.Error(err))
-		return "", errors.New("auth: invalid token")
-	}
-
-	logger.Log.Debug("auth: checking token")
-	if !token.Valid {
-		logger.Log.Error("auth: invalid token")
-		return "", errors.New("auth: invalid token")
-	}
-	return claims.UserID, nil
-}
-
-func setNewCookies(userID, secretKey string, w http.ResponseWriter) {
+func setNewCookies(userID string, jwtService jwt.JWT, w http.ResponseWriter) {
 	logger.Log.Debug("auth: setting new cookies", zap.String("user_id", userID))
-	token, err := buildJWTString(userID, secretKey)
+	token, err := jwtService.Generate(userID)
 	if err != nil {
 		logger.Log.Error("auth: failed to build JWT token", zap.String("error", err.Error()))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -118,7 +81,7 @@ func setNewCookies(userID, secretKey string, w http.ResponseWriter) {
 	cookie := http.Cookie{
 		Name:     tokenName,
 		Value:    token,
-		Expires:  time.Now().Add(24 * time.Hour),
+		Expires:  time.Now().Add(cookieExp),
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   false,
@@ -126,21 +89,4 @@ func setNewCookies(userID, secretKey string, w http.ResponseWriter) {
 	}
 
 	http.SetCookie(w, &cookie)
-}
-
-func buildJWTString(userID, secretKey string) (string, error) {
-	logger.Log.Debug("auth: building JWT token with user_id", zap.String("user_id", userID))
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenExp)),
-		},
-		UserID: userID,
-	})
-
-	tokenString, err := token.SignedString([]byte(secretKey))
-	if err != nil {
-		logger.Log.Error("auth: failed to sign JWT token", zap.String("error", err.Error()))
-		return "", err
-	}
-	return tokenString, nil
 }

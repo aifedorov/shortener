@@ -6,8 +6,9 @@ import (
 	"net/http"
 
 	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	"github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
-	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 	"go.uber.org/zap"
 )
@@ -15,11 +16,11 @@ import (
 // NewSavePlainTextHandler creates a new HTTP handler for single URL shortening operations via plain text.
 // This handler requires user authentication. If the user is not authenticated, a cookie will be created for them.
 // It accepts a plain text URL in the request body and returns the shortened URL as plain text.
-func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, urlChecker validate.URLChecker) http.HandlerFunc {
+func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, urlService urlDomain.Service, userService user.Service) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "text/plain")
 
-		userID, err := getUserID(r)
+		userID, err := userService.GetUserIDFromContext(r.Context())
 		if err != nil {
 			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
@@ -35,7 +36,7 @@ func NewSavePlainTextHandler(config *config.Config, repo repository.Repository, 
 
 		logger.Log.Debug("checking original url", zap.String("original_url", string(body)))
 		oURL := string(body)
-		if err := urlChecker.CheckURL(oURL); err != nil {
+		if err := urlService.ValidateURL(oURL); err != nil {
 			logger.Log.Error("invalid original url", zap.String("original_url", oURL))
 			http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return

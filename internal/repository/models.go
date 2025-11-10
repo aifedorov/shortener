@@ -26,3 +26,9 @@ type URLOutput struct {
 	// OriginalURL is the original URL that was shortened.
 	OriginalURL string `json:"original_url"`
 }
+
+// StatsOutput represents statistics about the repository.
+type StatsOutput struct {
+	TotalURLs  int
+	TotalUsers int
+}

@@ -1,8 +1,9 @@
 {
   "server_address": "localhost:8080",
+  "grpc_address": "localhost:9090",
   "base_url": "http://localhost",
-  "log_level": "debug",
   "file_storage_path": "urls.db",
   "database_dsn": "postgres://postgres:shortener@localhost:5432/shortener?sslmode=disable",
-  "enable_https": false
+  "enable_https": false,
+  "trusted_subnet": "127.0.0.1/32"
 }

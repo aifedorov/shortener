@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"go.uber.org/zap"
 
@@ -23,11 +24,11 @@ type URLResponse struct {
 // NewURLsHandler creates a new HTTP handler for retrieving all URLs belonging to a user.
 // This handler requires user authentication. If the user is not authenticated, a cookie will be created for them.
 // It returns a handler function that responds with a JSON array of user's URLs.
-func NewURLsHandler(cfg *config.Config, repo repository.Repository) http.HandlerFunc {
+func NewURLsHandler(cfg *config.Config, repo repository.Repository, userService user.Service) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Set("Content-Type", "application/json")
 
-		userID, err := getUserID(r)
+		userID, err := userService.GetUserIDFromContext(r.Context())
 		if err != nil {
 			logger.Log.Error("error getting user id", zap.Error(err))
 			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)

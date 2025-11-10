@@ -6,12 +6,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/aifedorov/shortener/internal/pkg/validate"
-	"go.uber.org/zap"
-
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
 	"github.com/aifedorov/shortener/internal/http/middleware/logger"
 	"github.com/aifedorov/shortener/internal/repository"
+	"go.uber.org/zap"
 )
 
 func decodeRequest(r *http.Request) (RequestBody, error) {
@@ -100,11 +98,11 @@ func encodeURLsResponse(rw http.ResponseWriter, urls []repository.URLOutput) err
 	return nil
 }
 
-func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]repository.BatchURLInput, error) {
+func validateURLs(reqURLs []BatchRequest, urlService urlDomain.Service) ([]repository.BatchURLInput, error) {
 	logger.Log.Debug("validating url")
 	var urls = make([]repository.BatchURLInput, len(reqURLs))
 	for i, reqBodyURL := range reqURLs {
-		if err := urlChecker.CheckURL(reqBodyURL.OriginalURL); err != nil {
+		if err := urlService.ValidateURL(reqBodyURL.OriginalURL); err != nil {
 			logger.Log.Error("invalid url", zap.String("url", reqBodyURL.OriginalURL), zap.Error(err))
 			return nil, errors.New("invalid url")
 		}
@@ -114,13 +112,4 @@ func validateURLs(reqURLs []BatchRequest, urlChecker validate.URLChecker) ([]rep
 		}
 	}
 	return urls, nil
-}
-
-func getUserID(r *http.Request) (string, error) {
-	userID, ok := r.Context().Value(auth.UserIDKey).(string)
-	if !ok || userID == "" {
-		logger.Log.Error("user_id not found")
-		return "", errors.New("user_id not found")
-	}
-	return userID, nil
 }

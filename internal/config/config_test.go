@@ -1,10 +1,12 @@
 package config
 
 import (
+	"net"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -20,22 +22,26 @@ func TestLoadConfig(t *testing.T) {
 			name: "successful load with environment variables",
 			envVars: map[string]string{
 				"SERVER_ADDRESS":    ":9090",
+				"GRPC_ADDRESS":      ":9091",
 				"BASE_URL":          "http://localhost:9090",
 				"LOG_LEVEL":         "debug",
 				"FILE_STORAGE_PATH": "/tmp/storage",
 				"DATABASE_DSN":      "postgres://test",
 				"ENABLE_HTTPS":      "true",
 				"SECRET_KEY":        "test-secret-key",
+				"TRUSTED_SUBNET":    "127.0.0.1/32",
 			},
 			expectedError: false,
 			expectedConfig: &Config{
 				RunAddr:         ":9090",
+				GRPCAddr:        ":9091",
 				BaseURL:         "http://localhost:9090",
 				LogLevel:        "debug",
 				FileStoragePath: "/tmp/storage",
 				DSN:             "postgres://test",
 				EnableHTTPS:     true,
 				SecretKey:       "test-secret-key",
+				TrustedSubnet:   "127.0.0.1/32",
 			},
 		},
 		{
@@ -66,6 +72,7 @@ func TestLoadConfig(t *testing.T) {
 			configFile: "test_config.json",
 			configContent: `{
 				"server_address": ":6060",
+				"grpc_address": ":9000",
 				"base_url": "http://localhost:6060",
 				"log_level": "warn",
 				"file_storage_path": "/config/storage",
@@ -75,6 +82,7 @@ func TestLoadConfig(t *testing.T) {
 			expectedError: false,
 			expectedConfig: &Config{
 				RunAddr:         ":7070",
+				GRPCAddr:        ":9000",
 				BaseURL:         "http://localhost:6060",
 				LogLevel:        "warn",
 				FileStoragePath: "/config/storage",
@@ -123,6 +131,15 @@ func TestLoadConfig(t *testing.T) {
 				assert.Equal(t, tt.expectedConfig.DSN, cfg.DSN)
 				assert.Equal(t, tt.expectedConfig.EnableHTTPS, cfg.EnableHTTPS)
 				assert.Equal(t, tt.expectedConfig.SecretKey, cfg.SecretKey)
+				assert.Equal(t, tt.expectedConfig.TrustedSubnet, cfg.TrustedSubnet)
+
+				// ParseWithUserID TrustedIPNet is parsed correctly
+				if tt.expectedConfig.TrustedSubnet != "" {
+					require.NotNil(t, cfg.TrustedIPNet, "TrustedIPNet should be parsed when TrustedSubnet is set")
+					_, expectedIPNet, err := net.ParseCIDR(tt.expectedConfig.TrustedSubnet)
+					require.NoError(t, err)
+					assert.Equal(t, expectedIPNet.String(), cfg.TrustedIPNet.String())
+				}
 			}
 		})
 	}
@@ -146,6 +163,7 @@ func TestParseEnvs(t *testing.T) {
 				"ENABLE_HTTPS":      "true",
 				"CONFIG":            "/path/to/config",
 				"SECRET_KEY":        "my-secret-key",
+				"TRUSTED_SUBNET":    "127.0.0.1/32",
 			},
 			expectedError: false,
 			expectedConfig: &Config{
@@ -157,6 +175,7 @@ func TestParseEnvs(t *testing.T) {
 				EnableHTTPS:     true,
 				ConfigPath:      "/path/to/config",
 				SecretKey:       "my-secret-key",
+				TrustedSubnet:   "127.0.0.1/32",
 			},
 		},
 		{
@@ -211,6 +230,7 @@ func TestParseEnvs(t *testing.T) {
 					assert.Equal(t, tt.expectedConfig.EnableHTTPS, cfg.EnableHTTPS)
 					assert.Equal(t, tt.expectedConfig.ConfigPath, cfg.ConfigPath)
 					assert.Equal(t, tt.expectedConfig.SecretKey, cfg.SecretKey)
+					assert.Equal(t, tt.expectedConfig.TrustedSubnet, cfg.TrustedSubnet)
 				}
 			}
 		})
@@ -364,6 +384,7 @@ func TestValidateConfig(t *testing.T) {
 			name: "valid config",
 			config: &Config{
 				RunAddr:         ":8080",
+				GRPCAddr:        ":9090",
 				BaseURL:         "http://localhost:8080",
 				LogLevel:        "info",
 				FileStoragePath: "/tmp/storage",
@@ -405,6 +426,33 @@ func TestValidateConfig(t *testing.T) {
 			},
 			expectedError: true,
 		},
+		{
+			name: "invalid trusted subnet",
+			config: &Config{
+				RunAddr:         ":8080",
+				BaseURL:         "http://localhost:8080",
+				LogLevel:        "invalid",
+				FileStoragePath: "/tmp/storage",
+				DSN:             "postgres://test",
+				SecretKey:       "secret",
+				TrustedSubnet:   "invalid.subnet",
+			},
+			expectedError: true,
+		},
+		{
+			name: "valid trusted subnet",
+			config: &Config{
+				RunAddr:         ":8080",
+				GRPCAddr:        ":9090",
+				BaseURL:         "http://localhost:8080",
+				LogLevel:        "info",
+				FileStoragePath: "/tmp/storage",
+				DSN:             "postgres://test",
+				SecretKey:       "secret",
+				TrustedSubnet:   "127.0.0.1/32",
+			},
+			expectedError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -415,6 +463,13 @@ func TestValidateConfig(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+				// ParseWithUserID TrustedIPNet is parsed when TrustedSubnet is set
+				if tt.config.TrustedSubnet != "" {
+					require.NotNil(t, tt.config.TrustedIPNet, "TrustedIPNet should be parsed when TrustedSubnet is valid")
+					_, expectedIPNet, err := net.ParseCIDR(tt.config.TrustedSubnet)
+					require.NoError(t, err)
+					assert.Equal(t, expectedIPNet.String(), tt.config.TrustedIPNet.String())
+				}
 			}
 		})
 	}
@@ -497,6 +552,7 @@ func TestReadConfigFromFile(t *testing.T) {
 func clearEnv() {
 	envVars := []string{
 		"SERVER_ADDRESS",
+		"GRPC_ADDRESS",
 		"BASE_URL",
 		"LOG_LEVEL",
 		"FILE_STORAGE_PATH",
@@ -504,6 +560,7 @@ func clearEnv() {
 		"ENABLE_HTTPS",
 		"CONFIG",
 		"SECRET_KEY",
+		"TRUSTED_SUBNET",
 	}
 
 	for _, env := range envVars {

@@ -5,6 +5,9 @@ import (
 	"net/http/httptest"
 
 	"github.com/aifedorov/shortener/internal/config"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
+	"github.com/aifedorov/shortener/internal/pkg/random"
 	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 )
@@ -19,11 +22,14 @@ func ExampleNewSavePlainTextHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
-	// Create URL checker
-	urlChecker := validate.NewService()
+	// Create domain service
+	validator := validate.NewService()
+	randomizer := random.NewService()
+	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
 
 	// Create the handler
-	_ = NewSavePlainTextHandler(cfg, repo, urlChecker)
+	_ = NewSavePlainTextHandler(cfg, repo, urlService, userService)
 
 	// The handler is now ready to process plain text URL shortening requests
 	// Note: In a real application, this handler requires user authentication
@@ -45,11 +51,14 @@ func ExampleNewSaveJSONHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
-	// Create URL checker
-	urlChecker := validate.NewService()
+	// Create domain service
+	validator := validate.NewService()
+	randomizer := random.NewService()
+	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
 
 	// Create the handler
-	_ = NewSaveJSONHandler(cfg, repo, urlChecker)
+	_ = NewSaveJSONHandler(cfg, repo, urlService, userService)
 
 	// The handler is now ready to process JSON URL shortening requests
 	// Note: In a real application, this handler requires user authentication
@@ -71,11 +80,14 @@ func ExampleNewSaveJSONBatchHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
-	// Create URL checker
-	urlChecker := validate.NewService()
+	// Create domain service
+	validator := validate.NewService()
+	randomizer := random.NewService()
+	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
 
 	// Create the handler
-	_ = NewSaveJSONBatchHandler(cfg, repo, urlChecker)
+	_ = NewSaveJSONBatchHandler(cfg, repo, urlService, userService)
 
 	// The handler is now ready to process batch URL shortening requests
 	// Note: In a real application, this handler requires user authentication
@@ -115,8 +127,11 @@ func ExampleNewURLsHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
+	// Create user service
+	userService := userDomain.NewService()
+
 	// Create the handler
-	_ = NewURLsHandler(cfg, repo)
+	_ = NewURLsHandler(cfg, repo, userService)
 
 	// The handler is now ready to retrieve user URLs
 	// Note: In a real application, this handler requires user authentication
@@ -133,8 +148,11 @@ func ExampleNewDeleteHandler() {
 	// Create a mock repository
 	repo := &mockRepository{}
 
+	// Create user service
+	userService := userDomain.NewService()
+
 	// Create the handler
-	_ = NewDeleteHandler(repo)
+	_ = NewDeleteHandler(repo, userService)
 
 	// The handler is now ready to delete user URLs
 	// Note: In a real application, this handler requires user authentication
@@ -202,20 +220,20 @@ func (m *mockRepository) Get(shortURL string) (string, error) {
 	return "", repository.ErrShortURLNotFound
 }
 
-func (m *mockRepository) GetAll(userID, baseURL string) ([]repository.URLOutput, error) {
+func (m *mockRepository) GetAll(userID, _ string) ([]repository.URLOutput, error) {
 	if urls, exists := m.userURLs[userID]; exists {
 		return urls, nil
 	}
 	return nil, repository.ErrUserHasNoData
 }
 
-func (m *mockRepository) Store(userID, baseURL, targetURL string) (string, error) {
+func (m *mockRepository) Store(_, baseURL, targetURL string) (string, error) {
 	shortURL := "abc123"
 	m.urls[shortURL] = targetURL
 	return baseURL + "/" + shortURL, nil
 }
 
-func (m *mockRepository) StoreBatch(userID, baseURL string, urls []repository.BatchURLInput) ([]repository.BatchURLOutput, error) {
+func (m *mockRepository) StoreBatch(_, baseURL string, urls []repository.BatchURLInput) ([]repository.BatchURLOutput, error) {
 	var results []repository.BatchURLOutput
 	for i, url := range urls {
 		shortURL := fmt.Sprintf("abc%d", i+1)
@@ -228,7 +246,33 @@ func (m *mockRepository) StoreBatch(userID, baseURL string, urls []repository.Ba
 	return results, nil
 }
 
-func (m *mockRepository) DeleteBatch(userID string, aliases []string) error {
-	// Mock implementation - just return success
+func (m *mockRepository) DeleteBatch(_ string, _ []string) error {
 	return nil
+}
+
+func (m *mockRepository) GetStats() (repository.StatsOutput, error) {
+	return repository.StatsOutput{
+		TotalURLs:  100,
+		TotalUsers: 25,
+	}, nil
+}
+
+// ExampleNewStatsHandler demonstrates how to create a statistics handler.
+func ExampleNewStatsHandler() {
+	// Create a mock repository
+	repo := &mockRepository{}
+
+	// Create the handler
+	_ = NewStatsHandler(repo)
+
+	// The handler is now ready to serve statistics
+	// Note: This endpoint requires the request IP to be in the trusted subnet (configured via middleware)
+	fmt.Printf("Handler created for service statistics\n")
+	fmt.Printf("Handler accepts: GET /api/internal/stats\n")
+	fmt.Printf("Response format: {\"urls\": <int>, \"users\": <int>}\n")
+
+	// Output:
+	// Handler created for service statistics
+	// Handler accepts: GET /api/internal/stats
+	// Response format: {"urls": <int>, "users": <int>}
 }

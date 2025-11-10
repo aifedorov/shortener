@@ -1,17 +1,16 @@
 package handlers
 
 import (
-	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
-	"github.com/aifedorov/shortener/internal/mocks"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
+	"github.com/aifedorov/shortener/internal/pkg/random"
+	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -188,16 +187,18 @@ func TestGetUserID(t *testing.T) {
 		},
 	}
 
+	userService := userDomain.NewService()
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 
 			if tt.name != "no user ID in context" {
-				ctx := context.WithValue(req.Context(), auth.UserIDKey, tt.userID)
+				ctx := userService.SetUserIDToContext(req.Context(), tt.userID)
 				req = req.WithContext(ctx)
 			}
 
-			result, err := getUserID(req)
+			result, err := userService.GetUserIDFromContext(req.Context())
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -214,7 +215,6 @@ func TestValidateURLs(t *testing.T) {
 	tests := []struct {
 		name        string
 		reqURLs     []BatchRequest
-		checkError  error
 		expected    []repository.BatchURLInput
 		expectError bool
 	}{
@@ -224,7 +224,6 @@ func TestValidateURLs(t *testing.T) {
 				{CID: "1", OriginalURL: "https://example.com"},
 				{CID: "2", OriginalURL: "https://google.com"},
 			},
-			checkError: nil,
 			expected: []repository.BatchURLInput{
 				{CID: "1", OriginalURL: "https://example.com"},
 				{CID: "2", OriginalURL: "https://google.com"},
@@ -236,14 +235,12 @@ func TestValidateURLs(t *testing.T) {
 			reqURLs: []BatchRequest{
 				{CID: "1", OriginalURL: "invalid-url"},
 			},
-			checkError:  errors.New("invalid URL"),
 			expected:    nil,
 			expectError: true,
 		},
 		{
 			name:        "empty URLs",
 			reqURLs:     []BatchRequest{},
-			checkError:  nil,
 			expected:    []repository.BatchURLInput{},
 			expectError: false,
 		},
@@ -251,15 +248,12 @@ func TestValidateURLs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+			// Create real domain service (lightweight, no external dependencies)
+			validator := validate.NewService()
+			randomizer := random.NewService()
+			urlService := urlDomain.NewService(randomizer, validator)
 
-			mockURLChecker := mocks.NewMockURLChecker(ctrl)
-			for _, reqURL := range tt.reqURLs {
-				mockURLChecker.EXPECT().CheckURL(reqURL.OriginalURL).Return(tt.checkError)
-			}
-
-			result, err := validateURLs(tt.reqURLs, mockURLChecker)
+			result, err := validateURLs(tt.reqURLs, urlService)
 
 			if tt.expectError {
 				assert.Error(t, err)

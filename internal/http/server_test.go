@@ -11,32 +11,47 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	urlDomain "github.com/aifedorov/shortener/internal/domain/url"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/mocks"
+	"github.com/aifedorov/shortener/internal/pkg/random"
+	"github.com/aifedorov/shortener/internal/pkg/validate"
 	"github.com/aifedorov/shortener/internal/repository"
 )
 
-func TestServer_Integration(t *testing.T) {
-	t.Parallel()
+func createDomainServices() (urlDomain.Service, userDomain.Service) {
+	validator := validate.NewService()
+	randomizer := random.NewService()
+	urlService := urlDomain.NewService(randomizer, validator)
+	userService := userDomain.NewService()
+	return urlService, userService
+}
 
+func TestServer_Integration(t *testing.T) {
 	t.Run("full workflow", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
+		mockJWT := mocks.NewMockJWT(ctrl)
 
 		// Setup expectations
+		mockJWT.EXPECT().Generate(gomock.Any()).Return("mock-jwt-token", nil).AnyTimes()
 		mockRepo.EXPECT().Store(gomock.Any(), gomock.Any(), "https://example.com").Return("http://localhost:8080/abc123", nil).Times(2)
 		mockRepo.EXPECT().GetAll(gomock.Any(), gomock.Any()).Return([]repository.URLOutput{
 			{ShortURL: "http://localhost:8080/abc123", OriginalURL: "https://example.com"},
 		}, nil)
 		mockRepo.EXPECT().Ping().Return(nil)
 
-		server := NewServer(context.Background(), newMockConfig(), mockRepo)
+		urlService, userService := createDomainServices()
+		server := NewServer(context.Background(), newMockConfig(), chi.NewRouter(), mockRepo, mockJWT, urlService, userService)
+		server.MountRoutes()
 
 		userID := uuid.NewString()
-		ctx := context.WithValue(context.Background(), auth.UserIDKey, userID)
+		ctx := userService.SetUserIDToContext(context.Background(), userID)
 
 		// 1. Create short URL via plain text
 		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com")).WithContext(ctx)
@@ -70,10 +85,13 @@ func TestServer_Integration(t *testing.T) {
 
 		cfg := newMockConfig()
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(context.Background(), cfg, mockRepo)
+		mockJWT := mocks.NewMockJWT(ctrl)
+		urlService, userService := createDomainServices()
+		server := NewServer(context.Background(), cfg, chi.NewRouter(), mockRepo, mockJWT, urlService, userService)
+		server.MountRoutes()
 
 		assert.NotNil(t, server)
-		assert.Equal(t, cfg, server.config)
+		assert.Equal(t, cfg, server.cfg)
 		assert.Equal(t, mockRepo, server.repo)
 	})
 
@@ -82,7 +100,11 @@ func TestServer_Integration(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(context.Background(), newMockConfig(), mockRepo)
+		mockJWT := mocks.NewMockJWT(ctrl)
+		// JWT middleware won't be reached because Content-Type middleware returns error first
+		urlService, userService := createDomainServices()
+		server := NewServer(context.Background(), newMockConfig(), chi.NewRouter(), mockRepo, mockJWT, urlService, userService)
+		server.MountRoutes()
 
 		// Test without user ID (should return unsupported media type since no Content-Type header)
 		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("https://example.com"))
@@ -99,8 +121,12 @@ func TestServer_ErrorHandling(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
+		mockJWT := mocks.NewMockJWT(ctrl)
+		mockJWT.EXPECT().Generate(gomock.Any()).Return("mock-jwt-token", nil)
 		mockRepo.EXPECT().Get("nonexistent").Return("", repository.ErrShortURLNotFound)
-		server := NewServer(context.Background(), newMockConfig(), mockRepo)
+		urlService, userService := createDomainServices()
+		server := NewServer(context.Background(), newMockConfig(), chi.NewRouter(), mockRepo, mockJWT, urlService, userService)
+		server.MountRoutes()
 
 		req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
 		res := executeRequest(req, server)
@@ -112,7 +138,11 @@ func TestServer_ErrorHandling(t *testing.T) {
 		defer ctrl.Finish()
 
 		mockRepo := mocks.NewMockRepository(ctrl)
-		server := NewServer(context.Background(), newMockConfig(), mockRepo)
+		mockJWT := mocks.NewMockJWT(ctrl)
+		mockJWT.EXPECT().Generate(gomock.Any()).Return("mock-jwt-token", nil)
+		urlService, userService := createDomainServices()
+		server := NewServer(context.Background(), newMockConfig(), chi.NewRouter(), mockRepo, mockJWT, urlService, userService)
+		server.MountRoutes()
 
 		req := httptest.NewRequest(http.MethodPut, "/", nil)
 		res := executeRequest(req, server)

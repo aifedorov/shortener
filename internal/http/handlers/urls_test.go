@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/aifedorov/shortener/internal/config"
-	"github.com/aifedorov/shortener/internal/http/middleware/auth"
+	userDomain "github.com/aifedorov/shortener/internal/domain/user"
 	"github.com/aifedorov/shortener/internal/mocks"
 	"github.com/aifedorov/shortener/internal/repository"
 	"github.com/golang/mock/gomock"
@@ -90,17 +89,18 @@ func TestNewURLsHandler(t *testing.T) {
 			}
 
 			mockRepo := mocks.NewMockRepository(ctrl)
+			userService := userDomain.NewService()
 
 			if tt.userID != "" {
 				mockRepo.EXPECT().GetAll(tt.userID, cfg.BaseURL).Return(tt.getAllResult, tt.getAllError)
 			}
 
-			handler := NewURLsHandler(cfg, mockRepo)
+			handler := NewURLsHandler(cfg, mockRepo, userService)
 
 			req := httptest.NewRequest(http.MethodGet, "/api/user/urls", nil)
 
 			if tt.userID != "" {
-				ctx := context.WithValue(req.Context(), auth.UserIDKey, tt.userID)
+				ctx := userService.SetUserIDToContext(req.Context(), tt.userID)
 				req = req.WithContext(ctx)
 			}
 
